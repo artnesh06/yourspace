@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { apiUrl } from '../lib/api'
 
 export function useModels() {
   const [groups, setGroups]   = useState([])
@@ -8,7 +9,7 @@ export function useModels() {
   useEffect(() => {
     async function fetchModels() {
       try {
-        const res = await fetch('/api/chat/models')
+        const res = await fetch(apiUrl('/api/chat/models'))
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const data = await res.json()
         setGroups(data.models || [])

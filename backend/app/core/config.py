@@ -15,5 +15,6 @@ class Settings:
     APP_BIND: str = os.getenv("APP_BIND", "127.0.0.1")
     APP_PORT: int = int(os.getenv("APP_PORT", "8000"))
     DEBUG: bool = os.getenv("DEBUG", "True").lower() == "true"
+    FRONTEND_ORIGINS: str = os.getenv("FRONTEND_ORIGINS", "")
 
 settings = Settings()

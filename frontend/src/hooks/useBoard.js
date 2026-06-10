@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react'
+import { apiUrl } from '../lib/api'
 
-const BACKEND_URL = 'http://localhost:8000/api/board'
+const BACKEND_URL = apiUrl('/api/board')
 
 const COLOR_CYCLE = ['blue', 'yellow', 'green', 'pink', 'purple']
 export function cardColor(index) {

@@ -5,6 +5,24 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.routes import chat, board
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175",
+]
+
+def get_cors_origins():
+    configured = [
+        origin.strip()
+        for origin in settings.FRONTEND_ORIGINS.split(",")
+        if origin.strip()
+    ]
+    return DEFAULT_CORS_ORIGINS + configured
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: create DB tables
@@ -17,15 +35,7 @@ app = FastAPI(title="Your Space API", version="1.0.0", lifespan=lifespan)
 # CORS middleware — allow localhost dev origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:5174",
-        "http://localhost:5175",
-        "http://localhost:5176",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:5174",
-        "http://127.0.0.1:5175",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

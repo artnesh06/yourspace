@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { apiUrl } from '../lib/api'
 
 const STORAGE_KEY = 'ys-chat-v1'
 const USER_ID = 'anesh'
@@ -60,7 +61,7 @@ export function useChat({ getBoardSummary, onToolCall }) {
     try {
       abortRef.current = new AbortController()
 
-      const res = await fetch('/api/chat/stream', {
+      const res = await fetch(apiUrl('/api/chat/stream'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: abortRef.current.signal,
