@@ -44,3 +44,8 @@ yarn-error.log*
 # Temp
 .turbo/
 .cache/
+.vite/
+.claude/
+
+# User-specific AI memory (generated at runtime)
+backend/data/memory/*.md

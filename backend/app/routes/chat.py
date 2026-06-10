@@ -1,12 +1,16 @@
 import json
 import time
 import httpx
+from anthropic import AsyncAnthropic
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from app.core.config import settings
-from app.services.chat_service import build_messages, TOOLS, execute_tool
+from app.services.chat_service import (
+    build_messages, TOOLS, execute_tool,
+    CLAUDE_TOOLS, build_claude_system, execute_claude_tool, read_memory,
+)
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -74,10 +78,11 @@ def _groq_fallback_models() -> list:
 
 class StreamChatRequest(BaseModel):
     message: str
-    model: str = "claude-3-5-haiku-20241022"
+    model: str = "claude-haiku-4-5"
     chat_history: List[dict] = []
     board_data: dict = {}
     system_prompt: Optional[str] = None
+    user_id: str = "anesh"
 
 
 @router.post("/stream")
@@ -97,84 +102,80 @@ async def _stream_claude(request: StreamChatRequest):
     if not api_key or api_key == "your_claude_api_key_here":
         raise HTTPException(400, "ANTHROPIC_API_KEY belum diset di backend .env")
 
-    messages = build_messages(
-        request.message,
-        request.chat_history,
-        request.board_data,
-        request.system_prompt,
-    )
+    board_data = request.board_data or {}
+    user_id = request.user_id or "default"
+    memory = read_memory(user_id)
+    system_msg = request.system_prompt or build_claude_system(board_data, memory)
 
-    # Separate system message from user/assistant messages
-    system_msg = ""
     chat_messages = []
-    for m in messages:
-        if m["role"] == "system":
-            system_msg = m["content"]
-        else:
-            chat_messages.append({"role": m["role"], "content": m["content"]})
+    for m in request.chat_history[-20:]:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if role in ("user", "assistant") and content:
+            chat_messages.append({"role": role, "content": content})
+    chat_messages.append({"role": "user", "content": request.message})
 
     async def event_generator():
         start = time.time()
         full_text = ""
         input_tokens = 0
         output_tokens = 0
+        tool_actions = []
+        messages = chat_messages
 
+        client = AsyncAnthropic(api_key=api_key)
         try:
-            async with httpx.AsyncClient(timeout=60) as client:
-                async with client.stream(
-                    "POST",
-                    f"{ANTHROPIC_API_BASE}/messages",
-                    headers={
-                        "x-api-key": api_key,
-                        "anthropic-version": "2023-06-01",
-                        "content-type": "application/json",
-                    },
-                    json={
-                        "model": request.model,
-                        "max_tokens": 2048,
-                        "system": system_msg,
-                        "messages": chat_messages,
-                        "stream": True,
-                    },
-                ) as resp:
-                    if resp.status_code != 200:
-                        body = await resp.aread()
-                        yield f"data: {json.dumps({'type': 'error', 'error': f'Claude API error {resp.status_code}: {body.decode()[:200]}'})}\n\n"
-                        return
+            # Agentic loop: stream → execute tools → feed results back → repeat
+            for _ in range(6):
+                async with client.messages.stream(
+                    model=request.model,
+                    max_tokens=4096,
+                    system=system_msg,
+                    messages=messages,
+                    tools=CLAUDE_TOOLS,
+                ) as stream:
+                    async for event in stream:
+                        if (
+                            event.type == "content_block_delta"
+                            and event.delta.type == "text_delta"
+                            and event.delta.text
+                        ):
+                            full_text += event.delta.text
+                            yield f"data: {json.dumps({'type': 'token', 'token': event.delta.text})}\n\n"
+                    final = await stream.get_final_message()
 
-                    async for line in resp.aiter_lines():
-                        if not line.startswith("data: "):
-                            continue
-                        raw = line[6:].strip()
-                        if not raw:
-                            continue
-                        try:
-                            event = json.loads(raw)
-                            etype = event.get("type", "")
+                input_tokens += final.usage.input_tokens
+                output_tokens += final.usage.output_tokens
 
-                            if etype == "content_block_delta":
-                                token = event.get("delta", {}).get("text", "")
-                                if token:
-                                    full_text += token
-                                    output_tokens += 1
-                                    yield f"data: {json.dumps({'type': 'token', 'token': token})}\n\n"
+                if final.stop_reason != "tool_use":
+                    break
 
-                            elif etype == "message_start":
-                                usage = event.get("message", {}).get("usage", {})
-                                input_tokens = usage.get("input_tokens", 0)
-
-                            elif etype == "message_delta":
-                                usage = event.get("usage", {})
-                                output_tokens = usage.get("output_tokens", output_tokens)
-
-                        except Exception:
-                            continue
+                # Execute every tool_use block, send results back
+                messages = messages + [{"role": "assistant", "content": final.content}]
+                tool_results = []
+                for block in final.content:
+                    if block.type != "tool_use":
+                        continue
+                    tool_input = block.input or {}
+                    result = execute_claude_tool(block.name, tool_input, board_data, user_id)
+                    tool_actions.append({"tool": block.name, "args": tool_input, "result": result})
+                    yield f"data: {json.dumps({'type': 'tool', 'tool': block.name, 'args': tool_input, 'result': result})}\n\n"
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                    })
+                messages = messages + [{"role": "user", "content": tool_results}]
+                if full_text:
+                    full_text += "\n\n"
 
             elapsed = round(time.time() - start, 2)
-            yield f"data: {json.dumps({'type': 'done', 'full_text': full_text, 'input_tokens': input_tokens, 'output_tokens': output_tokens, 'elapsed': elapsed, 'tool_actions': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'done', 'full_text': full_text, 'input_tokens': input_tokens, 'output_tokens': output_tokens, 'elapsed': elapsed, 'tool_actions': tool_actions})}\n\n"
 
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'error': str(e)})}\n\n"
+        finally:
+            await client.close()
 
     return StreamingResponse(
         event_generator(),

@@ -60,6 +60,14 @@ html, body { height: 100%; }
   --radius-sm: 10px;
   --radius-xs: 8px;
 
+  /* ── Claude palette ── */
+  --claude-bg:     #FAF9F5;
+  --claude-soft:   #ECEAE2;
+  --claude-line:   #E8E6DD;
+  --claude-orange: #C96442;
+  --claude-orange-deep: #B5532F;
+  --font-serif: 'Tiempos Text', Charter, Georgia, 'Times New Roman', serif;
+
   font-family: 'Inter', -apple-system, sans-serif;
   font-size: 14px;
   font-feature-settings: 'cv02','cv03','cv11';

@@ -1,6 +1,48 @@
 import { useRef, useEffect, useState } from 'react'
 import { useModels } from '../hooks/useModels'
 
+/* ── Claude starburst logo ────────────────────────────────────── */
+function ClaudeStar({ size = 26, className = '' }) {
+  const rays = []
+  const COUNT = 11
+  for (let i = 0; i < COUNT; i++) {
+    const angle = (i * 360) / COUNT - 90 + (i % 2 ? 5 : 0)
+    const len = i % 3 === 0 ? 9.6 : i % 3 === 1 ? 8.2 : 8.9
+    const rad = (angle * Math.PI) / 180
+    rays.push(
+      <line
+        key={i}
+        x1={12 + Math.cos(rad) * 2.4}
+        y1={12 + Math.sin(rad) * 2.4}
+        x2={12 + Math.cos(rad) * len}
+        y2={12 + Math.sin(rad) * len}
+        stroke="#D97757"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+      />
+    )
+  }
+  return (
+    <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      {rays}
+    </svg>
+  )
+}
+
+/* ── Streaming text: Claude-style word fade-in ────────────────── */
+function StreamingText({ text }) {
+  const parts = text.split(/(\s+)/)
+  return (
+    <span className="chat-streaming-text">
+      {parts.map((part, i) =>
+        part.trim()
+          ? <span key={i} className="stream-word">{part}</span>
+          : <span key={i}>{part}</span>
+      )}
+    </span>
+  )
+}
+
 /* ── Model Picker ─────────────────────────────────────────────── */
 function ModelPicker({ model, onSelect, onClose }) {
   const { groups, loading } = useModels()
@@ -153,7 +195,7 @@ function renderMarkdown(text) {
 
 function parseInline(text) {
   if (!text) return ''
-  
+
   const parts = []
   let remaining = text
   let key = 0
@@ -220,6 +262,7 @@ function parseInline(text) {
 
   return parts.length === 1 && typeof parts[0] === 'string' ? parts[0] : parts
 }
+
 function ToolBadge({ event }) {
   const label = {
     add_card: '+ Added card',
@@ -231,36 +274,74 @@ function ToolBadge({ event }) {
   return <span className="tool-badge">{label}</span>
 }
 
-/* ── Single message ───────────────────────────────────────────── */
-function ChatMessage({ msg }) {
-  const isUser = msg.role === 'user'
+/* ── Action icons under assistant message (Claude style) ──────── */
+function MessageActions({ msg, onRetry }) {
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(msg.content || '')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+
   return (
-    <div className={`chat-msg ${isUser ? 'chat-msg--user' : 'chat-msg--assistant'}`}>
-      <div className="chat-msg-bubble">
+    <div className="chat-msg-actions">
+      <button className="chat-action-btn" title="Copy" onClick={handleCopy}>
+        {copied
+          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        }
+      </button>
+      <button className="chat-action-btn" title="Read aloud">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+      </button>
+      <button className="chat-action-btn" title="Good response">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+      </button>
+      <button className="chat-action-btn" title="Bad response">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+      </button>
+      <button className="chat-action-btn" title="Retry" onClick={() => onRetry?.(msg.id)}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+      </button>
+    </div>
+  )
+}
+
+/* ── Single message ───────────────────────────────────────────── */
+function ChatMessage({ msg, onRetry }) {
+  const isUser = msg.role === 'user'
+
+  if (isUser) {
+    return (
+      <div className="chat-msg chat-msg--user">
+        <div className="chat-msg-bubble">{msg.content}</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="chat-msg chat-msg--assistant">
+      <div className="chat-msg-body">
         {/* Tool events */}
-        {!isUser && msg.toolEvents?.length > 0 && (
+        {msg.toolEvents?.length > 0 && (
           <div className="chat-tool-events">
             {msg.toolEvents.map((ev, i) => <ToolBadge key={i} event={ev} />)}
           </div>
         )}
 
         {/* Content */}
-        {msg.content
-          ? <div className="md-content">{renderMarkdown(msg.content)}</div>
-          : msg.streaming
-            ? null
-            : <span className="chat-empty">…</span>
+        {msg.streaming
+          ? (msg.content
+              ? <div className="chat-assistant-text"><StreamingText text={msg.content} /></div>
+              : <ClaudeStar size={28} className="claude-star claude-star--loading" />)
+          : (msg.content
+              ? <div className="chat-assistant-text md-content">{renderMarkdown(msg.content)}</div>
+              : <span className="chat-empty">…</span>)
         }
 
-        {/* Cursor when streaming */}
-        {msg.streaming && <span className="chat-cursor" />}
-
-        {/* Metadata */}
-        {!isUser && !msg.streaming && msg.tokens && (
-          <div className="chat-msg-meta">
-            {msg.tokens.input + msg.tokens.output} tok · {msg.elapsed}s
-          </div>
-        )}
+        {/* Action icons (Claude style) */}
+        {!msg.streaming && msg.content && <MessageActions msg={msg} onRetry={onRetry} />}
       </div>
     </div>
   )
@@ -295,29 +376,18 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
 
+  function handleRetry(msgId) {
+    if (loading) return
+    const idx = messages.findIndex(m => m.id === msgId)
+    for (let i = idx - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') { onSend(messages[i].content); return }
+    }
+  }
+
   // Short display name for model button
   const modelShort = model.length > 22 ? model.slice(0, 20) + '…' : model
 
-  const isFirstMessage = messages.length <= 1
-
-  // Token usage calculation
-  const MODEL_LIMITS = {
-    'llama-3.3-70b-versatile': 128000,
-    'llama-3.1-70b-versatile': 128000,
-    'llama-3.1-8b-instant': 128000,
-    'llama3-70b-8192': 8192,
-    'llama3-8b-8192': 8192,
-    'mixtral-8x7b-32768': 32768,
-    'gemma2-9b-it': 8192,
-    'gemma-7b-it': 8192,
-    'deepseek-r1-distill-llama-70b': 128000,
-    'qwen-qwq-32b': 128000,
-  }
-  const contextLimit = MODEL_LIMITS[model] || 32000
-  const lastDone = [...messages].reverse().find(m => m.tokens?.input != null)
-  const totalTokens = lastDone ? (lastDone.tokens.input + lastDone.tokens.output) : 0
-  const tokenPct = Math.min(100, Math.round((totalTokens / contextLimit) * 100))
-  const tokenClass = tokenPct < 50 ? 'low' : tokenPct < 80 ? 'medium' : 'high'
+  const lastMsg = messages[messages.length - 1]
 
   return (
     <div className="chat-panel-inner">
@@ -335,26 +405,12 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
 
       {/* Messages */}
       <div className="chat-messages">
-        {isFirstMessage && (
-          <div className="chat-welcome">
-            <div className="chat-welcome-greeting">
-              <h2 className="chat-welcome-hello">Halo, Anesh</h2>
-              <h3 className="chat-welcome-title">Ada yang bisa gue bantu hari ini?</h3>
-            </div>
-            <div className="chat-suggestions">
-              {['Summarize board progress', 'Explain board organization structure', 'List upcoming project deadlines'].map(s => (
-                <button key={s} className="chat-suggestion" onClick={() => onSend(s)}>{s}</button>
-              ))}
-            </div>
-          </div>
-        )}
+        {messages.map(msg => <ChatMessage key={msg.id} msg={msg} onRetry={handleRetry} />)}
 
-        {messages.map(msg => <ChatMessage key={msg.id} msg={msg} />)}
-
-        {loading && messages[messages.length - 1]?.streaming === false && (
+        {loading && lastMsg?.streaming === false && (
           <div className="chat-msg chat-msg--assistant">
-            <div className="chat-msg-bubble">
-              <span className="chat-wavy"><span /><span /><span /><span /><span /></span>
+            <div className="chat-msg-body">
+              <ClaudeStar size={28} className="claude-star claude-star--loading" />
             </div>
           </div>
         )}
@@ -362,58 +418,59 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area */}
+      {/* Input area (Claude style) */}
       <div className="chat-input-area">
-        {/* Token usage bar */}
-        {totalTokens > 0 && (
-          <div className="chat-token-bar-wrap">
-            <div className="chat-token-bar-row">
-              <span className="chat-token-bar-label">{totalTokens.toLocaleString()} / {contextLimit.toLocaleString()} tok</span>
-              <span className="chat-token-bar-pct" style={{ color: tokenPct >= 80 ? 'var(--pink-text)' : tokenPct >= 50 ? 'var(--yellow-text)' : 'var(--green-text)' }}>
-                {tokenPct}%
-              </span>
-            </div>
-            <div className="chat-token-bar">
-              <div className={`chat-token-bar-fill ${tokenClass}`} style={{ width: `${tokenPct}%` }} />
-            </div>
-          </div>
-        )}
-
-        {/* Model selector row */}
-        <div className="chat-model-row">
-          <button className="chat-model-btn" onClick={() => setPickerOpen(true)}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
-            </svg>
-            {modelShort}
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-        </div>
-
-        <form className="chat-input-form" onSubmit={handleSubmit}>
+        <form className="chat-input-box" onSubmit={handleSubmit}>
           <textarea
             ref={textareaRef}
             className="chat-input"
-            placeholder="Describe your agent..."
+            placeholder="Tulis pesan…"
             value={input}
             onChange={handleInput}
             onKeyDown={handleKey}
             rows={1}
-            disabled={false}
           />
-          {loading
-            ? <button type="button" className="chat-stop-btn" onClick={stopStream} title="Stop">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-              </button>
-            : <button type="submit" className="chat-send-btn" disabled={!input.trim()} aria-label="Send">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+          <div className="chat-input-controls">
+            <button type="button" className="chat-icon-btn" title="Add">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+            <div className="chat-input-right">
+              <button type="button" className="chat-model-btn" onClick={() => setPickerOpen(true)}>
+                {modelShort}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9"/>
                 </svg>
               </button>
-          }
+              {loading ? (
+                <button type="button" className="chat-stop-btn" onClick={stopStream} title="Stop">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg>
+                </button>
+              ) : input.trim() ? (
+                <button type="submit" className="chat-send-btn" aria-label="Send">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+                  </svg>
+                </button>
+              ) : (
+                <>
+                  <button type="button" className="chat-icon-btn" title="Voice input">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+                    </svg>
+                  </button>
+                  <button type="button" className="chat-icon-btn" title="Voice mode">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                      <line x1="4" y1="10" x2="4" y2="14"/><line x1="8" y1="7" x2="8" y2="17"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="16" y1="7" x2="16" y2="17"/><line x1="20" y1="10" x2="20" y2="14"/>
+                    </svg>
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
         </form>
+        <div className="chat-disclaimer">Claude adalah AI dan bisa keliru. Harap periksa kembali respons.</div>
       </div>
 
       {/* Model picker dropdown */}

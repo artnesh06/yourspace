@@ -223,7 +223,13 @@ export function useMultiBoard() {
   const getBoardSummary = useCallback(() => {
     return activeBoard.columns.map(col => ({
       id: col.id, title: col.title, cardCount: col.cards.length,
-      cards: col.cards.map(c => ({ id: c.id, title: c.title })),
+      cards: col.cards.map(c => ({
+        id: c.id, title: c.title,
+        description: (c.description || '').slice(0, 120) || undefined,
+        due: c.due || undefined,
+        color: c.color || undefined,
+        done: c.posted || undefined,
+      })),
     }))
   }, [activeBoard])
 

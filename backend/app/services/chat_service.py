@@ -1,10 +1,223 @@
 import httpx
 import json
+from datetime import datetime
+from pathlib import Path
 from app.core.config import settings
 
 GROQ_API_BASE = "https://api.groq.com/openai/v1"
 
 SYSTEM_PROMPT = """Kamu adalah Claude, AI assistant biasa. Tidak ada batasan khusus. Jawab semua pertanyaan dengan natural. Jika user minta update card/board di Your Space, gunakan tools yang tersedia."""
+
+# ── Claude (Anthropic) ───────────────────────────────────────────────────────
+
+CLAUDE_SYSTEM_PROMPT = """Kamu adalah AI assistant untuk "Your Space" — aplikasi kanban board + office management.
+
+Gaya bahasa: santai, bahasa Indonesia gaul (gue/lo), singkat dan jelas. Boleh pakai emoji secukupnya.
+
+Kamu bisa mengubah board user lewat tools. ATURAN PENTING:
+- Kalau user minta tambah/edit/pindah/hapus card atau kolom, WAJIB panggil tool yang sesuai. JANGAN PERNAH bilang sudah melakukan sesuatu tanpa benar-benar memanggil tool-nya.
+- Pakai ID card/kolom persis seperti yang ada di board state.
+- Setelah tool berhasil, konfirmasi singkat apa yang berubah.
+- Kalau user menyebut fakta penting tentang dirinya, preferensinya, atau pekerjaannya yang berguna untuk percakapan berikutnya, simpan dengan save_memory."""
+
+CLAUDE_TOOLS = [
+    {
+        "name": "add_card",
+        "description": "Tambah card/task baru ke kolom tertentu di board. Panggil tool ini setiap kali user minta menambah card, task, atau ide baru.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "columnId": {"type": "string", "description": "ID kolom tujuan, persis dari board state"},
+                "title": {"type": "string", "description": "Judul card"},
+                "description": {"type": "string", "description": "Deskripsi card (opsional)"},
+                "due": {"type": "string", "description": "Due date, format singkat misal '25 Apr' atau '13 Jun' (opsional)"},
+            },
+            "required": ["columnId", "title"],
+        },
+    },
+    {
+        "name": "update_card",
+        "description": "Update card yang sudah ada: judul, deskripsi, due date, warna label, atau status selesai.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cardId": {"type": "string", "description": "ID card yang mau diupdate, persis dari board state"},
+                "title": {"type": "string", "description": "Judul baru (opsional)"},
+                "description": {"type": "string", "description": "Deskripsi baru (opsional)"},
+                "due": {"type": "string", "description": "Due date baru (opsional)"},
+                "color": {"type": "string", "enum": ["pink", "green", "blue", "yellow", "purple"], "description": "Warna label baru (opsional)"},
+                "posted": {"type": "boolean", "description": "true = tandai selesai/done, false = belum selesai (opsional)"},
+            },
+            "required": ["cardId"],
+        },
+    },
+    {
+        "name": "move_card",
+        "description": "Pindahkan card ke kolom lain.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cardId": {"type": "string", "description": "ID card yang mau dipindah"},
+                "targetColumnId": {"type": "string", "description": "ID kolom tujuan"},
+            },
+            "required": ["cardId", "targetColumnId"],
+        },
+    },
+    {
+        "name": "delete_card",
+        "description": "Hapus card dari board.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cardId": {"type": "string", "description": "ID card yang mau dihapus"},
+            },
+            "required": ["cardId"],
+        },
+    },
+    {
+        "name": "open_card",
+        "description": "Buka detail card di layar user (membuka modal card). Pakai kalau user minta 'bukain card X' atau mau lihat detail.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "cardId": {"type": "string", "description": "ID card yang mau dibuka"},
+            },
+            "required": ["cardId"],
+        },
+    },
+    {
+        "name": "add_column",
+        "description": "Tambah kolom baru ke board.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string", "description": "Nama kolom baru"},
+            },
+            "required": ["title"],
+        },
+    },
+    {
+        "name": "rename_column",
+        "description": "Ganti nama kolom.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "columnId": {"type": "string", "description": "ID kolom"},
+                "title": {"type": "string", "description": "Nama baru"},
+            },
+            "required": ["columnId", "title"],
+        },
+    },
+    {
+        "name": "delete_column",
+        "description": "Hapus kolom beserta semua card di dalamnya. Hati-hati, destruktif.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "columnId": {"type": "string", "description": "ID kolom yang mau dihapus"},
+            },
+            "required": ["columnId"],
+        },
+    },
+    {
+        "name": "get_board_status",
+        "description": "Baca isi board sekarang — semua kolom dan card-nya. Pakai kalau butuh data board terbaru sebelum menjawab.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "save_memory",
+        "description": "Simpan fakta penting tentang user ke memori jangka panjang (preferensi, info pekerjaan, kebiasaan). Akan dibaca lagi di percakapan berikutnya.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "note": {"type": "string", "description": "Satu fakta singkat dan jelas, misal: 'User suka deadline dipasang H-2 sebelum acara'"},
+            },
+            "required": ["note"],
+        },
+    },
+]
+
+# ── Per-user memory (markdown file) ──────────────────────────────────────────
+
+MEMORY_DIR = Path(__file__).resolve().parents[2] / "data" / "memory"
+
+
+def read_memory(user_id: str) -> str:
+    safe = "".join(c for c in user_id if c.isalnum() or c in "-_") or "default"
+    path = MEMORY_DIR / f"{safe}.md"
+    try:
+        return path.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+
+
+def append_memory(user_id: str, note: str) -> None:
+    safe = "".join(c for c in user_id if c.isalnum() or c in "-_") or "default"
+    MEMORY_DIR.mkdir(parents=True, exist_ok=True)
+    path = MEMORY_DIR / f"{safe}.md"
+    stamp = datetime.now().strftime("%Y-%m-%d")
+    line = f"- {note.strip()} _(disimpan {stamp})_\n"
+    if not path.exists():
+        path.write_text(f"# Memory — {safe}\n\n{line}", encoding="utf-8")
+    else:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(line)
+
+
+def build_claude_system(board_data: dict, memory: str) -> str:
+    parts = [CLAUDE_SYSTEM_PROMPT]
+    if memory:
+        parts.append(f"Memori tentang user ini (dari percakapan sebelumnya):\n{memory}")
+    parts.append(
+        "Board state sekarang (JSON):\n"
+        + json.dumps(board_data, ensure_ascii=False)
+    )
+    return "\n\n".join(parts)
+
+
+def execute_claude_tool(tool_name: str, tool_input: dict, board_data: dict, user_id: str) -> dict:
+    """Execute a tool. Board mutations return an action dict that the frontend applies."""
+    if tool_name == "add_card":
+        return {
+            "action": "add_card",
+            "columnId": tool_input.get("columnId"),
+            "title": tool_input.get("title"),
+            "description": tool_input.get("description", ""),
+            "due": tool_input.get("due", ""),
+            "success": True,
+        }
+    if tool_name == "update_card":
+        changes = {k: v for k, v in tool_input.items() if k != "cardId" and v is not None}
+        return {"action": "update_card", "cardId": tool_input.get("cardId"), "changes": changes, "success": True}
+    if tool_name == "move_card":
+        return {
+            "action": "move_card",
+            "cardId": tool_input.get("cardId"),
+            "targetColumnId": tool_input.get("targetColumnId"),
+            "success": True,
+        }
+    if tool_name == "delete_card":
+        return {"action": "delete_card", "cardId": tool_input.get("cardId"), "success": True}
+    if tool_name == "open_card":
+        return {"action": "open_card", "cardId": tool_input.get("cardId"), "success": True}
+    if tool_name == "add_column":
+        return {"action": "add_column", "title": tool_input.get("title"), "success": True}
+    if tool_name == "rename_column":
+        return {"action": "rename_column", "columnId": tool_input.get("columnId"), "title": tool_input.get("title"), "success": True}
+    if tool_name == "delete_column":
+        return {"action": "delete_column", "columnId": tool_input.get("columnId"), "success": True}
+    if tool_name == "get_board_status":
+        return {"action": "get_board_status", "board": board_data, "success": True}
+    if tool_name == "save_memory":
+        note = (tool_input.get("note") or "").strip()
+        if note:
+            append_memory(user_id, note)
+            return {"action": "save_memory", "success": True}
+        return {"success": False, "error": "Empty note"}
+    return {"success": False, "error": f"Unknown tool: {tool_name}"}
+
+
+# ── Groq (legacy) ────────────────────────────────────────────────────────────
 
 TOOLS = [
     {
@@ -101,7 +314,7 @@ def build_messages(user_message: str, chat_history: list, board_data: dict, cust
 
 
 async def execute_tool(tool_name: str, tool_input: dict, board_data: dict) -> dict:
-    """Execute a board tool — returns action for frontend to apply"""
+    """Execute a board tool — returns action for frontend to apply (Groq path)"""
     if tool_name == "add_card":
         return {
             "action": "add_card",

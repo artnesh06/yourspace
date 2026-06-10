@@ -1,18 +1,44 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+
+const STORAGE_KEY = 'ys-chat-v1'
+const USER_ID = 'anesh'
+
+const GREETING = {
+  id: 'm0',
+  role: 'assistant',
+  content: "Halo! Gue AI assistant lo. Tanya apapun soal board, atau suruh gue tambah / pindah card.",
+  ts: Date.now(),
+}
+
+function loadStored() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (Array.isArray(data.messages) && data.messages.length > 0) return data
+  } catch { /* corrupt storage — start fresh */ }
+  return null
+}
 
 export function useChat({ getBoardSummary, onToolCall }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 'm0',
-      role: 'assistant',
-      content: "Halo! Gue AI assistant lo. Tanya apapun soal board, atau suruh gue tambah / pindah card.",
-      ts: Date.now(),
-    },
-  ])
+  const stored = loadStored()
+  const [messages, setMessages] = useState(stored?.messages || [GREETING])
   const [loading, setLoading]   = useState(false)
-  const [model, setModel]       = useState('claude-haiku-4-5')
-  const historyRef              = useRef([])
+  const [model, setModel]       = useState(stored?.model || 'claude-haiku-4-5')
+  const historyRef              = useRef(stored?.history || [])
   const abortRef                = useRef(null)
+
+  // Persist chat (skip streaming placeholders, cap size)
+  useEffect(() => {
+    try {
+      const toSave = messages.filter(m => !m.streaming).slice(-60)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        messages: toSave,
+        history: historyRef.current.slice(-40),
+        model,
+      }))
+    } catch { /* storage full — ignore */ }
+  }, [messages, model])
 
   const sendMessage = useCallback(async (userText) => {
     if (!userText.trim() || loading) return
@@ -41,6 +67,7 @@ export function useChat({ getBoardSummary, onToolCall }) {
         body: JSON.stringify({
           message: userText,
           model,
+          user_id: USER_ID,
           chat_history: historyRef.current.slice(-20),
           board_data: { columns: boardSummary },
         }),
@@ -75,8 +102,10 @@ export function useChat({ getBoardSummary, onToolCall }) {
                 m.id === assistantId ? { ...m, content: fullText } : m
               ))
             } else if (event.type === 'tool') {
-              // Just update UI with tool event badge, don't apply yet
-              // Tool actions will be applied once in the 'done' event
+              // Apply board mutations live as the agent works
+              if (event.result?.action) {
+                onToolCall({ tool: event.result.action, ...event.result })
+              }
               setMessages(prev => prev.map(m =>
                 m.id === assistantId
                   ? { ...m, toolEvents: [...(m.toolEvents || []), event] }
@@ -91,17 +120,10 @@ export function useChat({ getBoardSummary, onToolCall }) {
                   streaming: false,
                   tokens: { input: input_tokens, output: output_tokens },
                   elapsed,
-                  toolEvents: tool_actions || m.toolEvents || [],
+                  toolEvents: m.toolEvents || [],
                 } : m
               ))
               historyRef.current = [...historyRef.current, { role: 'assistant', content: full_text || fullText }]
-
-              // Apply tool actions ONCE here only
-              if (tool_actions?.length) {
-                tool_actions.forEach(ta => {
-                  if (ta.result?.action) onToolCall({ tool: ta.result.action, ...ta.result })
-                })
-              }
             } else if (event.type === 'error') {
               setMessages(prev => prev.map(m =>
                 m.id === assistantId ? { ...m, content: `⚠️ ${event.error}`, streaming: false } : m
@@ -129,5 +151,11 @@ export function useChat({ getBoardSummary, onToolCall }) {
     setMessages(prev => prev.map(m => m.streaming ? { ...m, streaming: false } : m))
   }, [])
 
-  return { messages, loading, sendMessage, stopStream, model, setModel }
+  const clearChat = useCallback(() => {
+    historyRef.current = []
+    setMessages([GREETING])
+    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+  }, [])
+
+  return { messages, loading, sendMessage, stopStream, clearChat, model, setModel }
 }
