@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(mkdir -p \"/Users/user/Documents/VIBE CODE/YOUR SPACE/.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(which python3 *)",
+      "Bash(kill 60944)",
+      "WebFetch(domain:x.com)",
+      "mcp__Claude_in_Chrome__tabs_context_mcp",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Frontend (Vite / React)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/user/Documents/VIBE CODE/YOUR SPACE/frontend",
+      "port": 5173,
+      "autoPort": false
+    },
+    {
+      "name": "Backend (FastAPI / Uvicorn)",
+      "runtimeExecutable": "/Users/user/Documents/VIBE CODE/YOUR SPACE/backend/venv/bin/python",
+      "runtimeArgs": ["-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
+      "cwd": "/Users/user/Documents/VIBE CODE/YOUR SPACE/backend",
+      "port": 8000
+    }
+  ]
+}
