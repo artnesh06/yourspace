@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cardColor } from '../hooks/useBoard'
+import { dueStatus, STATUS_COLOR, fmtDueShort, stripHtml } from '../lib/due'
 
 function CalIcon() {
   return (
@@ -135,12 +136,12 @@ export function KanbanCard({ card, index, columns, onDelete, onMove, onClick, on
             ) : null
           })()}
           <p className="card-title">{card.title}</p>
-          {card.description && <p className="card-excerpt">{card.description}</p>}
-          {(card.due || (card.comments && card.comments.length > 0)) && (
+          {card.description && stripHtml(card.description) && <p className="card-excerpt">{stripHtml(card.description)}</p>}
+          {(card.due || card.dueAt || (card.comments && card.comments.length > 0)) && (
             <div className="card-footer">
-              {card.due && (
-                <span className={`card-date ${color}`}>
-                  <CalIcon />{card.due}
+              {(card.due || card.dueAt) && (
+                <span className={`card-date due-${STATUS_COLOR[dueStatus(card)]}`}>
+                  <CalIcon />{fmtDueShort(card)}
                 </span>
               )}
               {card.comments && card.comments.length > 0 && (

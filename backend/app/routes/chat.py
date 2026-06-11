@@ -19,7 +19,7 @@ ANTHROPIC_API_BASE = "https://api.anthropic.com/v1"
 
 # Claude models available
 CLAUDE_MODELS = [
-    "claude-haiku-4-5",
+    "claude-haiku-4-5-20251001",
     "claude-sonnet-4-6",
     "claude-opus-4-8",
 ]
@@ -78,7 +78,7 @@ def _groq_fallback_models() -> list:
 
 class StreamChatRequest(BaseModel):
     message: str
-    model: str = "claude-haiku-4-5"
+    model: str = "claude-haiku-4-5-20251001"
     chat_history: List[dict] = []
     board_data: dict = {}
     system_prompt: Optional[str] = None

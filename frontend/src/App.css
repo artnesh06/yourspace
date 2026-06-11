@@ -25,21 +25,18 @@
 .sb-logo {
   width: 36px; height: 36px;
   display: grid; place-items: center;
-  border-radius: 11px;
-  background: var(--claude-orange);
-  margin-bottom: 18px;
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-}
-.sb-logo img {
-  width: 20px;
-  height: 20px;
-  object-fit: contain;
-}
-.sb-logo svg { stroke: #FFF8F2 !important; }
-
-.sb-icons-top {
-  display: flex;
+   border-radius: 0;
+   background: transparent;
+   margin-bottom: 18px;
+   box-shadow: none;
+   overflow: hidden;
+ }
+ .sb-logo img {
+   width: 24px;
+   height: 24px;
+   object-fit: contain;
+ }
+ .sb-logo svg { stroke: #E72F2F !important; }
   flex-direction: column;
   gap: 4px;
 }
@@ -3108,4 +3105,370 @@ tr:hover .row-delete, .team-card:hover .row-delete { opacity: 1; }
 @keyframes todayPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(201,100,66,0.35); }
   50%      { box-shadow: 0 0 0 7px rgba(201,100,66,0); }
+}
+
+/* ── Continuous Rolling Digits (NumberFlow) ── */
+.nf-root { display: inline-flex; font-variant-numeric: tabular-nums; line-height: 1; }
+.nf-slot { display: inline-block; overflow: hidden; height: 1.2em; position: relative; vertical-align: top; }
+.nf-char { display: block; height: 1.2em; line-height: 1.2; }
+.nf-roll { display: flex; flex-direction: column; height: 2.4em; }
+.nf-roll.nf-up { animation: nfRollUp 500ms cubic-bezier(0,0,0.2,1) forwards; }
+.nf-roll.nf-down { transform: translateY(-50%); animation: nfRollDown 500ms cubic-bezier(0,0,0.2,1) forwards; }
+@keyframes nfRollUp { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+@keyframes nfRollDown { from { transform: translateY(-50%); } to { transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .nf-roll { animation: none !important; }
+}
+
+/* ════════════════════════════════════════════════════════════════
+   CARD MODAL V2 — cover banner, datepicker, lightbox, rich desc,
+   warna status deadline
+   ════════════════════════════════════════════════════════════════ */
+
+/* modal jadi kolom: banner di atas, body (left+right) di bawah */
+.tm-modal { display: flex; flex-direction: column; overflow: hidden; }
+.tm-body { display: flex; flex: 1; min-height: 0; }
+
+/* ── Cover banner full-width paling atas ── */
+.tm-cover-banner {
+  position: relative;
+  height: 180px;
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: zoom-in;
+  background: #2F3B2F;
+}
+.tm-cover-blur {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(28px) brightness(.62) saturate(1.1);
+  transform: scale(1.15);
+}
+.tm-cover-banner-img {
+  position: relative;
+  display: block;
+  height: 100%;
+  margin: 0 auto;
+  object-fit: contain;
+  transition: transform .25s;
+}
+.tm-cover-banner:hover .tm-cover-banner-img { transform: scale(1.025); }
+.tm-cover-count {
+  position: absolute;
+  left: 14px; bottom: 12px;
+  padding: 3px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: #fff;
+  background: rgba(20,20,19,0.55);
+  backdrop-filter: blur(6px);
+}
+.tm-top-icons.on-cover .tm-icon-btn {
+  background: rgba(255,255,255,0.92);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Warna status deadline ──
+   merah=telat/hari H · kuning=mendekati · biru=terjadwal · krem=tanpa · hijau=selesai */
+.due-red     { background: #FBE5E0 !important; color: #B3301B !important; }
+.due-yellow  { background: #FBF0D3 !important; color: #946F00 !important; }
+.due-blue    { background: #E5EDFB !important; color: #3563C4 !important; }
+.due-cream   { background: var(--claude-soft) !important; color: var(--ink-2) !important; }
+.due-green   { background: #DFF2E5 !important; color: #1B7A3E !important; }
+
+.card-date.due-red    { animation: latePulse 2s ease infinite; }
+@keyframes latePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(179,48,27,0.25); }
+  50%      { box-shadow: 0 0 0 5px rgba(179,48,27,0); }
+}
+
+.tm-due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 650;
+  transition: filter .15s;
+}
+.tm-due-chip:hover { filter: brightness(.96); }
+.due-badge {
+  padding: 2px 9px;
+  border-radius: 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+.badge-red    { background: #E2543B; color: #fff; }
+.badge-yellow { background: #E8C04A; color: #5C4500; }
+.badge-blue   { background: #3563C4; color: #fff; }
+.badge-green  { background: #2BAE66; color: #fff; }
+
+/* ── Date picker ── */
+.datepicker {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 300px;
+  padding: 14px !important;
+  display: block !important;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: var(--shadow-xl), inset 0 0 0 1px var(--claude-line);
+  animation: fadeUp .18s ease;
+}
+.datepicker-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 10px;
+}
+.datepicker-title { font-size: 14px; font-weight: 750; }
+.datepicker-x {
+  position: absolute;
+  right: 0; top: -2px;
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 8px;
+  font-size: 16px;
+  color: var(--ink-3);
+}
+.datepicker-x:hover { background: var(--claude-bg); color: var(--ink); }
+
+.datepicker-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.datepicker-month { font-size: 13px; font-weight: 700; flex: 1; text-align: center; }
+.dp-nav {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  border-radius: 7px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.dp-nav:hover { background: var(--claude-bg); }
+
+.datepicker-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 12px;
+}
+.datepicker-dow {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 750;
+  color: var(--ink-4);
+  padding: 4px 0;
+}
+.datepicker-day {
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition: background .12s;
+}
+.datepicker-day:hover { background: var(--claude-bg); }
+.datepicker-day.today { box-shadow: inset 0 -2px 0 var(--claude-orange); color: var(--claude-orange); font-weight: 800; }
+.datepicker-day.range { background: var(--accent-soft); border-radius: 0; }
+.datepicker-day.start { background: var(--ink); color: #fff; }
+.datepicker-day.due   { background: var(--claude-orange); color: #fff; }
+
+.datepicker-field { display: block; margin-bottom: 10px; }
+.datepicker-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 750;
+  color: var(--ink-2);
+  margin-bottom: 5px;
+}
+.datepicker-row { display: flex; align-items: center; gap: 7px; }
+.datepicker-row input[type="checkbox"] {
+  width: 16px; height: 16px;
+  accent-color: var(--claude-orange);
+  flex-shrink: 0;
+}
+.datepicker-row input[type="date"],
+.datepicker-row input[type="time"] {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  font-size: 12.5px;
+  border: 1px solid var(--claude-line);
+  border-radius: 8px;
+  background: #fff;
+  outline: none;
+}
+.datepicker-row input:disabled { background: var(--claude-bg); color: var(--ink-4); }
+.datepicker-row input:focus { border-color: var(--claude-orange); }
+.datepicker-actions { display: flex; gap: 7px; margin-top: 4px; }
+
+/* ── Rich description ── */
+.tm-rich-area {
+  min-height: 120px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  outline: none;
+  background: #fff;
+}
+.tm-rich-area:empty::before,
+.tm-rich-area:has(> p:only-child > br:only-child)::before {
+  content: attr(data-placeholder);
+  color: var(--ink-4);
+  pointer-events: none;
+}
+.tm-rich-area h1, .tm-rich-area h2, .tm-rich-area h3,
+.tm-desc-rich h1, .tm-desc-rich h2, .tm-desc-rich h3 {
+  font-size: 15.5px;
+  font-weight: 750;
+  margin: 10px 0 4px;
+  letter-spacing: -0.015em;
+}
+.tm-rich-area p, .tm-desc-rich p { margin: 0 0 6px; }
+.tm-rich-area ul, .tm-rich-area ol,
+.tm-desc-rich ul, .tm-desc-rich ol { padding-left: 22px; margin: 6px 0; }
+.tm-rich-area li, .tm-desc-rich li { margin: 2px 0; }
+.tm-rich-area hr, .tm-desc-rich hr {
+  border: none;
+  border-top: 1px solid var(--claude-line);
+  margin: 12px 0;
+}
+.tm-rich-area code, .tm-desc-rich code {
+  background: var(--claude-soft);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.tm-rich-area a, .tm-desc-rich a { color: var(--claude-orange); }
+.tm-rich-area img, .tm-desc-rich img { max-width: 100%; border-radius: 8px; }
+
+/* collapse + Show more (gaya screenshot lo) */
+.tm-desc-collapse-wrap { position: relative; }
+.tm-desc-rich.collapsed {
+  max-height: 240px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+}
+.tm-show-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ink-2);
+  background: #fff;
+  border: 1px solid var(--claude-line);
+  transition: all .15s;
+}
+.tm-show-more:hover { border-color: var(--ink-4); color: var(--ink); }
+
+/* ── Lightbox fullscreen ── */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15,14,12,0.88);
+  backdrop-filter: blur(6px);
+  animation: fadeIn .18s ease;
+}
+.lightbox-img {
+  max-width: min(86vw, 1100px);
+  max-height: 74vh;
+  border-radius: 10px;
+  box-shadow: 0 24px 80px rgba(0,0,0,.5);
+  animation: animPop .25s cubic-bezier(.34,1.3,.5,1);
+}
+.lightbox-x {
+  position: absolute;
+  top: 18px; right: 22px;
+  width: 38px; height: 38px;
+  display: grid; place-items: center;
+  border-radius: 11px;
+  font-size: 24px;
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+  transition: background .15s;
+}
+.lightbox-x:hover { background: rgba(255,255,255,0.22); }
+.lightbox-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  font-size: 28px;
+  color: #fff;
+  background: rgba(255,255,255,0.12);
+  transition: background .15s;
+  z-index: 2;
+}
+.lightbox-arrow:hover { background: rgba(255,255,255,0.24); }
+.lightbox-arrow.prev { left: 26px; }
+.lightbox-arrow.next { right: 26px; }
+
+.lightbox-panel {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: #fff;
+  animation: fadeUp .25s ease;
+}
+.lightbox-name { font-size: 15px; font-weight: 700; }
+.lightbox-meta { font-size: 12px; opacity: .75; margin-top: 3px; }
+.lightbox-actions {
+  display: flex;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.lightbox-actions button {
+  padding: 8px 15px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #fff;
+  background: rgba(255,255,255,0.13);
+  backdrop-filter: blur(4px);
+  transition: background .15s;
+}
+.lightbox-actions button:hover { background: rgba(255,255,255,0.25); }
+.lightbox-actions button.active { background: rgba(43,174,102,0.55); }
+.lightbox-actions button.danger:hover { background: rgba(226,84,59,0.65); }
+
+/* datepicker harus solid, jangan tembus */
+.tm-pop.datepicker, .datepicker {
+  background: #FFFFFF !important;
+  opacity: 1 !important;
+  backdrop-filter: none !important;
 }

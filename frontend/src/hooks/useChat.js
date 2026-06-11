@@ -21,7 +21,7 @@ function loadStored() {
   return null
 }
 
-export function useChat({ getBoardSummary, onToolCall }) {
+export function useChat({ getBoardSummary, getAppContext, onToolCall }) {
   const stored = loadStored()
   const [messages, setMessages] = useState(stored?.messages || [GREETING])
   const [loading, setLoading]   = useState(false)
@@ -70,7 +70,7 @@ export function useChat({ getBoardSummary, onToolCall }) {
           model,
           user_id: USER_ID,
           chat_history: historyRef.current.slice(-20),
-          board_data: { columns: boardSummary },
+          board_data: { columns: boardSummary, app: getAppContext ? getAppContext() : undefined },
         }),
       })
 
@@ -144,7 +144,7 @@ export function useChat({ getBoardSummary, onToolCall }) {
       setLoading(false)
       abortRef.current = null
     }
-  }, [loading, model, getBoardSummary, onToolCall])
+  }, [loading, model, getBoardSummary, getAppContext, onToolCall])
 
   const stopStream = useCallback(() => {
     abortRef.current?.abort()

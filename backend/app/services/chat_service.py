@@ -14,8 +14,13 @@ CLAUDE_SYSTEM_PROMPT = """Kamu adalah AI assistant untuk "Your Space" — aplika
 
 Gaya bahasa: santai, bahasa Indonesia gaul (gue/lo), singkat dan jelas. Boleh pakai emoji secukupnya.
 
-Kamu bisa mengubah board user lewat tools. ATURAN PENTING:
+Aplikasi ini punya beberapa halaman (lihat app.availablePages di state): home (dashboard), search, board (kanban), absen (absensi/clock in-out), calendar (kalender deadline), team (anggota tim), payroll (gaji, otomatis dihitung dari absensi), activity (log aktivitas). Kamu bisa pindahin user ke halaman lain pakai navigate_page.
+
+Kamu bisa mengubah board & aplikasi lewat tools. ATURAN PENTING:
 - Kalau user minta tambah/edit/pindah/hapus card atau kolom, WAJIB panggil tool yang sesuai. JANGAN PERNAH bilang sudah melakukan sesuatu tanpa benar-benar memanggil tool-nya.
+- Kalau user minta absen masuk/pulang ("absen", "clock in", "mulai kerja", "pulang"), pakai clock_in / clock_out.
+- Kalau user minta tambah anggota tim, pakai add_team_member (salary dalam Rupiah, angka penuh, mis. 7000000).
+- Kalau user minta buka halaman tertentu ("buka kalender", "lihat gaji"), pakai navigate_page.
 - Pakai ID card/kolom persis seperti yang ada di board state.
 - Setelah tool berhasil, konfirmasi singkat apa yang berubah.
 - Kalau user menyebut fakta penting tentang dirinya, preferensinya, atau pekerjaannya yang berguna untuk percakapan berikutnya, simpan dengan save_memory."""
@@ -135,6 +140,44 @@ CLAUDE_TOOLS = [
             "required": ["note"],
         },
     },
+    {
+        "name": "navigate_page",
+        "description": "Pindahkan user ke halaman lain di aplikasi. Pakai kalau user minta buka halaman tertentu.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "string",
+                    "enum": ["home", "search", "board", "absen", "calendar", "team", "payroll", "activity"],
+                    "description": "Halaman tujuan",
+                },
+            },
+            "required": ["page"],
+        },
+    },
+    {
+        "name": "clock_in",
+        "description": "Absen masuk — mulai sesi kerja user (mulai hitung jam kerja). Pakai kalau user bilang mulai kerja / absen masuk / clock in.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "clock_out",
+        "description": "Absen pulang — akhiri sesi kerja user yang sedang berjalan. Pakai kalau user bilang selesai kerja / pulang / clock out.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "add_team_member",
+        "description": "Tambah anggota tim baru beserta role dan gaji pokok bulanan (Rupiah).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Nama anggota"},
+                "role": {"type": "string", "description": "Role/jabatan, mis. Designer"},
+                "salary": {"type": "number", "description": "Gaji pokok per bulan dalam Rupiah, mis. 7000000"},
+            },
+            "required": ["name"],
+        },
+    },
 ]
 
 # ── Per-user memory (markdown file) ──────────────────────────────────────────
@@ -214,6 +257,20 @@ def execute_claude_tool(tool_name: str, tool_input: dict, board_data: dict, user
             append_memory(user_id, note)
             return {"action": "save_memory", "success": True}
         return {"success": False, "error": "Empty note"}
+    if tool_name == "navigate_page":
+        return {"action": "navigate_page", "page": tool_input.get("page"), "success": True}
+    if tool_name == "clock_in":
+        return {"action": "clock_in", "success": True}
+    if tool_name == "clock_out":
+        return {"action": "clock_out", "success": True}
+    if tool_name == "add_team_member":
+        return {
+            "action": "add_team_member",
+            "name": tool_input.get("name"),
+            "role": tool_input.get("role", "Member"),
+            "salary": tool_input.get("salary", 5000000),
+            "success": True,
+        }
     return {"success": False, "error": f"Unknown tool: {tool_name}"}
 
 
