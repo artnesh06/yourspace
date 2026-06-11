@@ -1,29 +1,40 @@
-import sqlite3
 import os
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker
+from app.core.config import settings
 
-# Always use absolute path relative to this file
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DB_PATH = os.path.join(BASE_DIR, "yourspace.db")
+# Database setup for PostgreSQL (Supabase) or SQLite
+engine = create_engine(settings.DATABASE_URL, echo=settings.DEBUG)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db_session():
-    """Get SQLite connection"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    """Get database session"""
+    return SessionLocal()
 
 async def init_db():
     """Create all tables on startup"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    from sqlalchemy import inspect
     
-    # Board table (single entry, id=1)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS board (
-            id INTEGER PRIMARY KEY,
-            board_data TEXT NOT NULL
-        )
-    """)
+    inspector = inspect(engine)
     
-    conn.commit()
-    conn.close()
+    # Board table
+    if "board" not in inspector.get_table_names():
+        with engine.begin() as connection:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS board (
+                    id SERIAL PRIMARY KEY,
+                    board_data TEXT NOT NULL
+                )
+            """))
+    
+    # Chat messages table
+    if "chat_message" not in inspector.get_table_names():
+        with engine.begin() as connection:
+            connection.execute(text("""
+                CREATE TABLE IF NOT EXISTS chat_message (
+                    id SERIAL PRIMARY KEY,
+                    message TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
 
