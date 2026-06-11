@@ -13,7 +13,19 @@ import { CardModal } from './components/CardModal'
 import { ChatPanel } from './components/ChatPanel'
 import { useMultiBoard } from './hooks/useBoard'
 import { useChat } from './hooks/useChat'
+import { useAttendance, fmtDuration } from './hooks/useAttendance'
+import { useTeam } from './hooks/useTeam'
+import { useActivity } from './hooks/useActivity'
+import { HomePage } from './pages/HomePage'
+import { SearchPage } from './pages/SearchPage'
+import { ClockPage } from './pages/ClockPage'
+import { CalendarPage } from './pages/CalendarPage'
+import { TeamPage } from './pages/TeamPage'
+import { PayrollPage } from './pages/PayrollPage'
+import logo from './assets/logo.png'
 import './App.css'
+
+const PAGES = ['home', 'search', 'board', 'absen', 'calendar', 'team', 'payroll']
 
 // Sidebar icons
 function SidebarIcon({ active, title, onClick, children }) {
@@ -25,6 +37,7 @@ function SidebarIcon({ active, title, onClick, children }) {
 }
 
 export default function App() {
+  const [page, setPage]                 = useState('home')
   const [chatOpen, setChatOpen]         = useState(false)
   const [activeItem, setActiveItem]     = useState(null)
   const [modalCard, setModalCard]       = useState(null)
@@ -43,21 +56,74 @@ export default function App() {
     addColumn, renameColumn, deleteColumn, addComment, deleteComment, getBoardSummary,
   } = useMultiBoard()
 
+  const attendance = useAttendance()
+  const team       = useTeam()
+  const activity   = useActivity()
+  const { log }    = activity
+
+  // ── Logged board ops (UI) ──────────────────────────────────────
+  const addCardLogged = useCallback((columnId, title, description = '', due = '') => {
+    addCard(columnId, title, description, due)
+    log('card', `Card baru: "${title}"`)
+  }, [addCard, log])
+
+  const deleteCardLogged = useCallback((cardId) => {
+    const card = board.columns.flatMap(c => c.cards).find(c => c.id === cardId)
+    deleteCard(cardId)
+    log('card', `Card dihapus: "${card?.title || cardId}"`)
+  }, [deleteCard, board, log])
+
+  const moveCardLogged = useCallback((cardId, targetColumnId, targetIndex = -1) => {
+    const card = board.columns.flatMap(c => c.cards).find(c => c.id === cardId)
+    const target = board.columns.find(c => c.id === targetColumnId)
+    moveCard(cardId, targetColumnId, targetIndex)
+    if (card && target) log('card', `"${card.title}" dipindah ke ${target.title}`)
+  }, [moveCard, board, log])
+
   // ── AI chat ────────────────────────────────────────────────────
   const handleToolCall = useCallback((action) => {
     switch (action.tool) {
-      case 'add_card':      addCard(action.columnId, action.title, action.description || '', action.due || ''); break
-      case 'update_card':   updateCard(action.cardId, action.changes || {}); break
-      case 'move_card':     moveCard(action.cardId, action.targetColumnId); break
-      case 'delete_card':   deleteCard(action.cardId); break
-      case 'open_card':     setModalCard({ id: action.cardId }); break
-      case 'add_column':    addColumn(action.title); break
+      case 'add_card':      addCard(action.columnId, action.title, action.description || '', action.due || ''); log('ai', `AI nambahin card "${action.title}"`); break
+      case 'update_card':   updateCard(action.cardId, action.changes || {}); log('ai', 'AI update card'); break
+      case 'move_card':     moveCard(action.cardId, action.targetColumnId); log('ai', 'AI mindahin card'); break
+      case 'delete_card':   deleteCard(action.cardId); log('ai', 'AI hapus card'); break
+      case 'open_card':     setPage('board'); setModalCard({ id: action.cardId }); break
+      case 'add_column':    addColumn(action.title); log('ai', `AI nambahin kolom "${action.title}"`); break
       case 'rename_column': renameColumn(action.columnId, action.title); break
-      case 'delete_column': deleteColumn(action.columnId); break
+      case 'delete_column': deleteColumn(action.columnId); log('ai', 'AI hapus kolom'); break
+      case 'navigate_page': {
+        const target = action.page === 'activity' ? 'home' : action.page
+        if (PAGES.includes(target)) { setPage(target); log('ai', `AI buka halaman ${target}`) }
+        break
+      }
+      case 'clock_in':
+        if (attendance.clockIn()) log('absen', 'Clock in via AI — mulai kerja')
+        break
+      case 'clock_out':
+        if (attendance.clockOut()) log('absen', 'Clock out via AI — sesi selesai')
+        break
+      case 'add_team_member': {
+        const m = team.addMember(action.name || 'Anggota', action.role || 'Member', action.salary || 5000000)
+        log('team', `AI nambahin anggota: ${m.name} (${m.role})`)
+        break
+      }
     }
-  }, [addCard, updateCard, moveCard, deleteCard, addColumn, renameColumn, deleteColumn])
+  }, [addCard, updateCard, moveCard, deleteCard, addColumn, renameColumn, deleteColumn, attendance, team, log])
 
-  const { messages, loading, sendMessage, stopStream, model, setModel } = useChat({ getBoardSummary, onToolCall: handleToolCall })
+  // App context for the AI (page, absen, team)
+  const getAppContext = useCallback(() => ({
+    currentPage: page,
+    availablePages: PAGES,
+    attendance: {
+      isClockedIn: attendance.isClockedIn,
+      daysPresentThisMonth: attendance.daysPresent,
+      hoursThisMonth: fmtDuration(attendance.monthMs),
+      streak: attendance.streak,
+    },
+    team: team.members.map(m => ({ id: m.id, name: m.name, role: m.role, salary: m.salary })),
+  }), [page, attendance, team])
+
+  const { messages, loading, sendMessage, stopStream, model, setModel } = useChat({ getBoardSummary, getAppContext, onToolCall: handleToolCall })
 
   // ── Filter / Search ────────────────────────────────────────────
   const COLOR_FILTERS = ['all', 'pink', 'green', 'blue', 'yellow', 'purple']
@@ -164,64 +230,69 @@ export default function App() {
     setAddingTab(false)
   }
 
+  // open a card from Search / Calendar pages
+  function openCardFromPage(boardId, card) {
+    if (boardId !== activeId) switchTab(boardId)
+    setPage('board')
+    setModalCard(card)
+  }
+
+  const PAGE_TITLES = {
+    home: 'Home', search: 'Search', board: 'Board', absen: 'Absensi',
+    calendar: 'Kalender', team: 'Tim', payroll: 'Payroll', activity: 'Aktivitas',
+  }
+
   return (
     <div className="app">
 
       {/* ── Sidebar ── */}
       <aside className="sidebar-v2">
         <div className="sb-logo">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--red)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
-          </svg>
+          <img src={logo} alt="Logo" />
         </div>
         <div className="sb-icons-top">
-          <SidebarIcon title="Dashboard (soon)">
+          <SidebarIcon title="Home" active={page === 'home'} onClick={() => setPage('home')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Search" onClick={() => setSearchOpen(v => !v)}>
+          <SidebarIcon title="Search" active={page === 'search'} onClick={() => setPage('search')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Board" active>
+          <SidebarIcon title="Board" active={page === 'board'} onClick={() => setPage('board')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
               <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Absensi (soon)">
+          <SidebarIcon title="Absensi" active={page === 'absen'} onClick={() => setPage('absen')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Kalender (soon)">
+          <SidebarIcon title="Kalender" active={page === 'calendar'} onClick={() => setPage('calendar')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
               <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Karyawan / HRD (soon)">
+          <SidebarIcon title="Tim" active={page === 'team'} onClick={() => setPage('team')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Payroll / Gaji (soon)">
+          <SidebarIcon title="Payroll" active={page === 'payroll'} onClick={() => setPage('payroll')}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
           </SidebarIcon>
         </div>
         <div className="sb-icons-bottom">
-          <SidebarIcon title="Aktivitas (soon)">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-          </SidebarIcon>
-          <div className="sb-avatar" title="Profile (soon)">A</div>
+          <div className="sb-avatar" title="Anesh — Owner">A</div>
         </div>
       </aside>
 
@@ -230,62 +301,68 @@ export default function App() {
 
         {/* ── Topbar ── */}
         <header className="topbar-v2">
-          {/* Tabs */}
-          <div className="topbar-tabs">
-            {boards.map(b => (
-              <button
-                key={b.id}
-                className={`board-tab ${b.id === activeId ? 'active' : ''}`}
-                onClick={() => switchTab(b.id)}
-                onContextMenu={e => {
-                  e.preventDefault()
-                  if (boards.length > 1 && confirm(`Hapus tab "${b.label}"?`)) deleteTab(b.id)
-                }}
-              >
-                <span className="board-tab-icon">🌿</span>
-                {b.label}
-              </button>
-            ))}
-            {addingTab ? (
-              <form className="tab-add-form" onSubmit={e => { e.preventDefault(); handleAddTab() }}>
-                <input
-                  autoFocus
-                  value={newTabName}
-                  onChange={e => setNewTabName(e.target.value)}
-                  placeholder="Nama board..."
-                  onBlur={handleAddTab}
-                  onKeyDown={e => e.key === 'Escape' && setAddingTab(false)}
-                />
-              </form>
-            ) : (
-              <button className="tab-add-btn" onClick={() => setAddingTab(true)} title="Add board">+</button>
-            )}
-          </div>
+          {page === 'board' ? (
+            <div className="topbar-tabs">
+              {boards.map(b => (
+                <button
+                  key={b.id}
+                  className={`board-tab ${b.id === activeId ? 'active' : ''}`}
+                  onClick={() => switchTab(b.id)}
+                  onContextMenu={e => {
+                    e.preventDefault()
+                    if (boards.length > 1 && confirm(`Hapus tab "${b.label}"?`)) deleteTab(b.id)
+                  }}
+                >
+                  <span className="board-tab-icon">🌿</span>
+                  {b.label}
+                </button>
+              ))}
+              {addingTab ? (
+                <form className="tab-add-form" onSubmit={e => { e.preventDefault(); handleAddTab() }}>
+                  <input
+                    autoFocus
+                    value={newTabName}
+                    onChange={e => setNewTabName(e.target.value)}
+                    placeholder="Nama board..."
+                    onBlur={handleAddTab}
+                    onKeyDown={e => e.key === 'Escape' && setAddingTab(false)}
+                  />
+                </form>
+              ) : (
+                <button className="tab-add-btn" onClick={() => setAddingTab(true)} title="Add board">+</button>
+              )}
+            </div>
+          ) : (
+            <div className="topbar-pagetitle">{PAGE_TITLES[page]}</div>
+          )}
 
           <div className="topbar-spacer" />
 
-          {/* Search */}
-          {searchOpen && (
-            <input autoFocus className="topbar-search-input" placeholder="Cari card..."
-              value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} />
+          {page === 'board' && (
+            <>
+              {searchOpen && (
+                <input autoFocus className="topbar-search-input" placeholder="Cari card..."
+                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }} />
+              )}
+
+              <button className={`topbar-btn ${searchOpen ? 'active' : ''}`} onClick={() => {
+                if (searchOpen) { setSearchQuery(''); setSearchOpen(false) } else setSearchOpen(true)
+              }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                Search
+              </button>
+
+              <button className={`topbar-btn ${filterOpen ? 'active' : ''}`} onClick={() => setFilterOpen(v => !v)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+                </svg>
+                Filter
+              </button>
+            </>
           )}
-
-          <button className={`topbar-btn ${searchOpen ? 'active' : ''}`} onClick={() => {
-            if (searchOpen) { setSearchQuery(''); setSearchOpen(false) } else setSearchOpen(true)
-          }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            Search
-          </button>
-
-          <button className={`topbar-btn ${filterOpen ? 'active' : ''}`} onClick={() => setFilterOpen(v => !v)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
-            </svg>
-            Filter
-          </button>
 
           <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -295,8 +372,8 @@ export default function App() {
           </button>
         </header>
 
-        {/* ── Filter Bar ── */}
-        {filterOpen && (
+        {/* ── Filter Bar (board only) ── */}
+        {page === 'board' && filterOpen && (
           <div className="filter-bar open">
             <span className="filter-label">Color:</span>
             {COLOR_FILTERS.map(f => (
@@ -308,54 +385,68 @@ export default function App() {
           </div>
         )}
 
-        {/* ── Board Frame ── */}
-        <div className="board-frame-wrap">
-          <div className="board-frame">
-            <div className="board-row">
-              <div className="board-dnd-wrapper">
-                <DndContext sensors={sensors} collisionDetection={closestCorners}
-                  onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
-                  <div className="board-container">
-                    <div className="board">
-                      <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
-                        {filteredBoard.columns.map(col => (
-                          <KanbanColumn
-                            key={col.id} column={col} allColumns={board.columns}
-                            onAddCard={addCard} onDeleteCard={deleteCard}
-                            onDeleteColumn={deleteColumn} onRenameColumn={renameColumn}
-                            onMoveCard={moveCard} onDuplicateCard={duplicateCard}
-                            onCardClick={card => setModalCard(card)}
-                          />
-                        ))}
-                      </SortableContext>
-                      {newColOpen
-                        ? <AddColumnForm onAdd={name => { addColumn(name); setNewColOpen(false) }} onCancel={() => setNewColOpen(false)} />
-                        : <button className="add-column-btn" onClick={() => setNewColOpen(true)}>
-                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round">
-                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-                            </svg>
-                            <span className="add-column-label">Add column</span>
-                          </button>
-                      }
+        {/* ── Pages ── */}
+        {page === 'home' && (
+          <HomePage
+            boards={boards} board={board} attendance={attendance} team={team} activity={activity}
+            onNavigate={setPage} onOpenChat={() => setChatOpen(true)}
+          />
+        )}
+        {page === 'search'   && <SearchPage boards={boards} onOpenCard={openCardFromPage} />}
+        {page === 'absen'    && <ClockPage attendance={attendance} onLog={log} />}
+        {page === 'calendar' && <CalendarPage boards={boards} onOpenCard={openCardFromPage} />}
+        {page === 'team'     && <TeamPage team={team} onLog={log} />}
+        {page === 'payroll'  && <PayrollPage team={team} attendance={attendance} />}
+
+        {page === 'board' && (
+          <div className="board-frame-wrap">
+            <div className="board-frame">
+              <div className="board-row">
+                <div className="board-dnd-wrapper">
+                  <DndContext sensors={sensors} collisionDetection={closestCorners}
+                    onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+                    <div className="board-container">
+                      <div className="board">
+                        <SortableContext items={columnIds} strategy={horizontalListSortingStrategy}>
+                          {filteredBoard.columns.map(col => (
+                            <KanbanColumn
+                              key={col.id} column={col} allColumns={board.columns}
+                              onAddCard={addCardLogged} onDeleteCard={deleteCardLogged}
+                              onDeleteColumn={deleteColumn} onRenameColumn={renameColumn}
+                              onMoveCard={moveCardLogged} onDuplicateCard={duplicateCard}
+                              onCardClick={card => setModalCard(card)}
+                            />
+                          ))}
+                        </SortableContext>
+                        {newColOpen
+                          ? <AddColumnForm onAdd={name => { addColumn(name); log('column', `Kolom baru: "${name}"`); setNewColOpen(false) }} onCancel={() => setNewColOpen(false)} />
+                          : <button className="add-column-btn" onClick={() => setNewColOpen(true)}>
+                              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round">
+                                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                              </svg>
+                              <span className="add-column-label">Add column</span>
+                            </button>
+                        }
+                      </div>
                     </div>
-                  </div>
-                  <DragOverlay dropAnimation={dropAnimation}>
-                    {activeItem?.type === 'card' && (
-                      <div style={{ transform: 'rotate(2deg)', opacity: 0.88 }}>
-                        <KanbanCard card={activeItem.data} index={0} columns={board.columns} onDelete={() => {}} onMove={() => {}} onClick={() => {}} />
-                      </div>
-                    )}
-                    {activeItem?.type === 'column' && (
-                      <div style={{ opacity: 0.88 }}>
-                        <KanbanColumn column={activeItem.data} allColumns={[]} onAddCard={() => {}} onDeleteCard={() => {}} onDeleteColumn={() => {}} onMoveCard={() => {}} onCardClick={() => {}} isDragOverlay />
-                      </div>
-                    )}
-                  </DragOverlay>
-                </DndContext>
+                    <DragOverlay dropAnimation={dropAnimation}>
+                      {activeItem?.type === 'card' && (
+                        <div style={{ transform: 'rotate(2deg)', opacity: 0.88 }}>
+                          <KanbanCard card={activeItem.data} index={0} columns={board.columns} onDelete={() => {}} onMove={() => {}} onClick={() => {}} />
+                        </div>
+                      )}
+                      {activeItem?.type === 'column' && (
+                        <div style={{ opacity: 0.88 }}>
+                          <KanbanColumn column={activeItem.data} allColumns={[]} onAddCard={() => {}} onDeleteCard={() => {}} onDeleteColumn={() => {}} onMoveCard={() => {}} onCardClick={() => {}} isDragOverlay />
+                        </div>
+                      )}
+                    </DragOverlay>
+                  </DndContext>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ── Chat Panel ── */}
@@ -377,9 +468,9 @@ export default function App() {
           columnTitle={findCardColumn(freshModalCard.id)?.title || ''}
           colIndex={colIndex} allColumns={board.columns}
           onClose={() => setModalCard(null)}
-          onUpdate={updateCard} onDelete={deleteCard}
+          onUpdate={updateCard} onDelete={deleteCardLogged}
           onAddComment={addComment} onDeleteComment={deleteComment}
-          onMove={moveCard} onDuplicate={duplicateCard}
+          onMove={moveCardLogged} onDuplicate={duplicateCard}
         />
       )}
     </div>
