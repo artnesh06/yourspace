@@ -25,21 +25,18 @@
 .sb-logo {
   width: 36px; height: 36px;
   display: grid; place-items: center;
-   border-radius: 0;
-   background: transparent;
-   margin-bottom: 18px;
-   box-shadow: none;
-   overflow: hidden;
- }
- .sb-logo img {
-   width: 24px;
-   height: 24px;
-   object-fit: contain;
- }
- .sb-logo svg { stroke: #E72F2F !important; }
-  flex-direction: column;
-  gap: 4px;
+  border-radius: 0;
+  background: transparent;
+  margin-bottom: 18px;
+  box-shadow: none;
+  overflow: hidden;
 }
+.sb-logo img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.sb-logo svg { stroke: #E72F2F !important; }
 
 .sb-icons-bottom {
   margin-top: auto;
