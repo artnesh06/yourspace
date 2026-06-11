@@ -55,22 +55,25 @@ const WEEKS = 26
 function dateKey(d) { return d.toISOString().slice(0, 10) }
 
 function Heatmap({ counts, total }) {
-  // columns of weeks, Monday-first, ending this week
+  // center today, past on left/top, future on right/bottom
   const { weeks, monthLabels } = useMemo(() => {
     const today = new Date()
     const dow = (today.getDay() + 6) % 7 // 0 = Monday
-    const end = new Date(today)
-    end.setDate(end.getDate() + (6 - dow)) // sunday of current week
+    const todayCol = Math.floor(WEEKS / 2) - 1 // put today near center
+    const start = new Date(today)
+    start.setDate(start.getDate() - (todayCol * 7 + dow))
+
     const weeks = []
     const monthLabels = []
     let lastMonth = -1
-    for (let w = WEEKS - 1; w >= 0; w--) {
+    for (let w = 0; w < WEEKS; w++) {
       const col = []
       for (let d = 0; d < 7; d++) {
-        const day = new Date(end)
-        day.setDate(end.getDate() - w * 7 - (6 - d))
+        const day = new Date(start)
+        day.setDate(start.getDate() + w * 7 + d)
         const future = day > today
-        col.push({ key: dateKey(day), count: counts[dateKey(day)] || 0, future, date: day })
+        const isToday = dateKey(day) === dateKey(today)
+        col.push({ key: dateKey(day), count: counts[dateKey(day)] || 0, future, date: day, isToday })
       }
       const m = col[0].date.getMonth()
       monthLabels.push(m !== lastMonth ? MONTH_SHORT[m] : '')
@@ -105,9 +108,9 @@ function Heatmap({ counts, total }) {
               {col.map(cell => (
                 <span
                   key={cell.key}
-                  className={`heat-cell ${cell.future ? 'future' : ''}`}
+                  className={`heat-cell ${cell.future ? 'future' : ''} ${cell.isToday ? 'today-cell' : ''}`}
                   style={{ background: cell.future ? 'transparent' : HEAT_COLORS[level(cell.count)], animationDelay: `${wi * 14}ms` }}
-                  title={`${cell.key} — ${cell.count} aktivitas`}
+                  title={`${cell.key}${cell.isToday ? ' (Today)' : ''} — ${cell.count} aktivitas`}
                 />
               ))}
             </div>

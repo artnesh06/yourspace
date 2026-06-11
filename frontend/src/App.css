@@ -2850,19 +2850,26 @@ tr:hover .row-delete, .team-card:hover .row-delete { opacity: 1; }
 .heatmap-scroll { overflow-x: auto; padding-bottom: 4px; }
 .heatmap-months {
   display: flex;
+  justify-content: space-between;
+  gap: 3px;
   margin-left: 34px;
   margin-bottom: 5px;
 }
 .heatmap-month {
-  width: 16px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 16px;
   font-size: 10px;
   font-weight: 650;
   color: var(--ink-3);
+  text-align: center;
   overflow: visible;
   white-space: nowrap;
 }
-.heatmap-grid { display: flex; gap: 3px; }
+.heatmap-grid {
+  display: grid;
+  grid-template-columns: minmax(30px, auto) repeat(26, minmax(0, 1fr));
+  gap: 3px;
+}
 .heatmap-dows {
   display: flex;
   flex-direction: column;
@@ -2878,20 +2885,28 @@ tr:hover .row-delete, .team-card:hover .row-delete { opacity: 1; }
   line-height: 13px;
 }
 .heatmap-col {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: repeat(7, minmax(0, 1fr));
   gap: 3px;
 }
 .heat-cell {
-  width: 13px;
-  height: 13px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   border-radius: 3.5px;
-  flex-shrink: 0;
   animation: heatIn .4s ease backwards;
-  transition: transform .12s;
+  transition: transform .12s, box-shadow .12s;
 }
-.heatmap-col .heat-cell:hover { transform: scale(1.35); }
-.heat-cell.future { background: transparent !important; }
+.heatmap-col .heat-cell:hover {
+  transform: scale(1.28);
+  box-shadow: 0 0 0 4px rgba(231, 47, 47, 0.14);
+}
+.heat-cell.future {
+  background: transparent !important;
+  opacity: 0.35;
+}
+.heat-cell.today-cell {
+  box-shadow: 0 0 0 1px #E72F2F, 0 0 0 4px rgba(231, 47, 47, 0.14);
+}
 @keyframes heatIn {
   from { opacity: 0; transform: scale(.5); }
   to   { opacity: 1; transform: scale(1); }
