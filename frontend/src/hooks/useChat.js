@@ -2,7 +2,6 @@ import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiUrl } from '../lib/api'
 
 const STORAGE_KEY = 'ys-chat-v1'
-const USER_ID = 'anesh'
 
 const GREETING = {
   id: 'm0',
@@ -21,7 +20,7 @@ function loadStored() {
   return null
 }
 
-export function useChat({ getBoardSummary, getAppContext, onToolCall }) {
+export function useChat({ userId = 'default', getBoardSummary, getAppContext, onToolCall }) {
   const stored = loadStored()
   const [messages, setMessages] = useState(stored?.messages || [GREETING])
   const [loading, setLoading]   = useState(false)
@@ -68,7 +67,7 @@ export function useChat({ getBoardSummary, getAppContext, onToolCall }) {
         body: JSON.stringify({
           message: userText,
           model,
-          user_id: USER_ID,
+          user_id: userId,
           chat_history: historyRef.current.slice(-20),
           board_data: { columns: boardSummary, app: getAppContext ? getAppContext() : undefined },
         }),
@@ -158,5 +157,11 @@ export function useChat({ getBoardSummary, getAppContext, onToolCall }) {
     try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }, [])
 
-  return { messages, loading, sendMessage, stopStream, clearChat, model, setModel }
+  // pesan assistant lokal (tanpa hit API) — dipakai buat reminder deadline
+  const addLocalAssistant = useCallback((content) => {
+    setMessages(prev => [...prev, { id: 'mr' + Date.now(), role: 'assistant', content, ts: Date.now() }])
+    historyRef.current = [...historyRef.current, { role: 'assistant', content }]
+  }, [])
+
+  return { messages, loading, sendMessage, stopStream, clearChat, addLocalAssistant, model, setModel }
 }

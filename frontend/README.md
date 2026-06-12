@@ -1,16 +1,38 @@
-# React + Vite
+# Your Space — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite UI untuk Your Space.
 
-Currently, two official plugins are available:
+## Cara paling gampang
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Jalankan dari root project:
 
-## React Compiler
+```bash
+cd "/Users/user/Documents/VIBE CODE/YOUR SPACE"
+./start-local.sh
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Helper itu akan menyalakan backend dan frontend sekaligus.
 
-## Expanding the ESLint configuration
+## Frontend saja
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+cd frontend
+VITE_API_BASE_URL=http://127.0.0.1:8000 npm run dev -- --host 127.0.0.1 --port 5173
+```
+
+Kalau `5173` penuh, Vite bisa pakai port berikutnya seperti `5174`.
+
+## Build
+
+```bash
+npm run build
+```
+
+Output build ada di `frontend/dist/` dan tidak ikut commit.
+
+## Batas Folder
+
+- `src/` adalah source UI aktif.
+- `src_backup_*/` adalah backup lokal sementara dan di-ignore.
+- `dist/` adalah hasil build dan di-ignore.
+- `node_modules/` adalah dependency lokal dan di-ignore.

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { durationMs, fmtDuration } from '../hooks/useAttendance'
+import NumberFlow from '../components/NumberFlow-standalone'
 
 function fmtTime(ts) {
   if (!ts) return '—'
@@ -129,12 +130,12 @@ export function ClockPage({ attendance, onLog }) {
           </div>
           <div className="stat-card anim-in" style={{ animationDelay: '220ms' }}>
             <div className="stat-label">Hari hadir</div>
-            <div className="stat-value">{daysPresent}</div>
+            <div className="stat-value"><NumberFlow value={daysPresent} /></div>
             <div className="stat-sub">hari bulan ini</div>
           </div>
           <div className="stat-card anim-in" style={{ animationDelay: '280ms' }}>
             <div className="stat-label">Streak</div>
-            <div className="stat-value">{streak} 🔥</div>
+            <div className="stat-value"><NumberFlow value={streak} /> 🔥</div>
             <div className="stat-sub">hari berturut-turut</div>
           </div>
         </div>

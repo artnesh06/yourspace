@@ -1,7 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
-import { apiUrl } from '../lib/api'
-
-const BACKEND_URL = apiUrl('/api/board')
+import { useCallback } from 'react'
+import { useServerState } from './useServerState'
 
 const COLOR_CYCLE = ['blue', 'yellow', 'green', 'pink', 'purple']
 export function cardColor(index) {
@@ -43,43 +41,24 @@ function makeDefaultBoard(label) {
 
 const STORAGE_KEY = 'yourspace-multiboad-v1'
 
-function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (parsed.boards?.length > 0) return parsed
-    }
-  } catch (_) {}
-  const defaultBoard = makeDefaultBoard('Jun - 2026')
+function defaultState() {
+  const defaultBoard = makeDefaultBoard('Board 1')
   return { boards: [defaultBoard], activeId: defaultBoard.id }
 }
 
-function saveState(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch (_) {}
-  // save active board to backend
-  const active = state.boards.find(b => b.id === state.activeId)
-  if (active) {
-    fetch(BACKEND_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ columns: active.columns }),
-    }).catch(() => {})
-  }
-}
-
 export function useMultiBoard() {
-  const [state, setState] = useState(() => loadState())
+  const [state, setState, { loading }] = useServerState('boards', defaultState(), STORAGE_KEY)
 
   const update = useCallback((fn) => {
     setState(prev => {
-      const next = fn(prev)
-      saveState(next)
-      return next
+      // guard: data server bisa kosong/aneh
+      if (!prev?.boards?.length) prev = defaultState()
+      return fn(prev)
     })
-  }, [])
+  }, [setState])
 
-  const activeBoard = state.boards.find(b => b.id === state.activeId) || state.boards[0]
+  const safeBoards = state?.boards?.length ? state.boards : defaultState().boards
+  const activeBoard = safeBoards.find(b => b.id === state?.activeId) || safeBoards[0]
   const board = { columns: activeBoard.columns }
 
   // ── Tab operations ──
@@ -236,8 +215,9 @@ export function useMultiBoard() {
 
   return {
     board,
-    boards: state.boards,
-    activeId: state.activeId,
+    boards: safeBoards,
+    activeId: activeBoard.id,
+    boardsLoading: loading,
     addTab, switchTab, renameTab, deleteTab,
     addCard, updateCard, deleteCard, duplicateCard, moveCard, setColumns,
     addColumn, renameColumn, deleteColumn,

@@ -1,18 +1,7 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useServerState } from './useServerState'
 
 const STORAGE_KEY = 'ys-attendance-v1'
-
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch { /* fresh start */ }
-  return { records: [] }
-}
-
-function save(state) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* ignore */ }
-}
 
 function genId() {
   return 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
@@ -36,21 +25,20 @@ export function fmtDuration(ms) {
 }
 
 export function useAttendance() {
-  const [state, setState] = useState(load)
+  const [state, setState] = useServerState('attendance', { records: [] }, STORAGE_KEY)
+  const records_ = state?.records || []
 
-  useEffect(() => { save(state) }, [state])
-
-  const todayRecord = state.records.find(r => r.date === todayKey() && !r.out)
-    || state.records.filter(r => r.date === todayKey()).slice(-1)[0]
-  const isClockedIn = !!state.records.find(r => r.date === todayKey() && r.in && !r.out)
+  const todayRecord = records_.find(r => r.date === todayKey() && !r.out)
+    || records_.filter(r => r.date === todayKey()).slice(-1)[0]
+  const isClockedIn = !!records_.find(r => r.date === todayKey() && r.in && !r.out)
 
   const clockIn = useCallback(() => {
     let ok = false
     setState(prev => {
-      const open = prev.records.find(r => r.date === todayKey() && !r.out)
+      const open = (prev?.records || []).find(r => r.date === todayKey() && !r.out)
       if (open) return prev
       ok = true
-      return { records: [...prev.records, { id: genId(), date: todayKey(), in: Date.now(), out: null }] }
+      return { records: [...(prev?.records || []), { id: genId(), date: todayKey(), in: Date.now(), out: null }] }
     })
     return ok
   }, [])
@@ -58,26 +46,26 @@ export function useAttendance() {
   const clockOut = useCallback(() => {
     let ok = false
     setState(prev => {
-      const open = prev.records.find(r => r.date === todayKey() && !r.out)
+      const open = (prev?.records || []).find(r => r.date === todayKey() && !r.out)
       if (!open) return prev
       ok = true
-      return { records: prev.records.map(r => r.id === open.id ? { ...r, out: Date.now() } : r) }
+      return { records: (prev?.records || []).map(r => r.id === open.id ? { ...r, out: Date.now() } : r) }
     })
     return ok
   }, [])
 
   const deleteRecord = useCallback((id) => {
-    setState(prev => ({ records: prev.records.filter(r => r.id !== id) }))
+    setState(prev => ({ records: (prev?.records || []).filter(r => r.id !== id) }))
   }, [])
 
   // month stats
   const monthPrefix = todayKey().slice(0, 7)
-  const monthRecords = state.records.filter(r => r.date.startsWith(monthPrefix))
+  const monthRecords = records_.filter(r => r.date.startsWith(monthPrefix))
   const monthMs = monthRecords.reduce((sum, r) => sum + durationMs(r), 0)
   const daysPresent = new Set(monthRecords.map(r => r.date)).size
 
   // streak: consecutive days (incl today/yesterday) with a record
-  const dates = new Set(state.records.map(r => r.date))
+  const dates = new Set(records_.map(r => r.date))
   let streak = 0
   const cursor = new Date()
   if (!dates.has(todayKey(cursor))) cursor.setDate(cursor.getDate() - 1)
@@ -87,7 +75,7 @@ export function useAttendance() {
   }
 
   return {
-    records: state.records,
+    records: records_,
     todayRecord, isClockedIn,
     clockIn, clockOut, deleteRecord,
     monthMs, daysPresent, streak,

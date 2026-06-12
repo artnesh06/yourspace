@@ -1,0 +1,10 @@
+.secret
+memory/*.md
+!memory/.gitkeep
+uploads/*
+!uploads/.gitkeep
+runtime/*
+!runtime/.gitkeep
+*.db
+*.sqlite
+*.sqlite3

@@ -4,6 +4,23 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { cardColor } from '../hooks/useBoard'
 import { dueStatus, STATUS_COLOR, fmtDueShort, stripHtml } from '../lib/due'
+import { dominantColor } from '../lib/dominantColor'
+
+/* cover yang fit utuh + background warna dominan gambar */
+function CardCover({ cover, count }) {
+  const [bg, setBg] = useState(null)
+  useEffect(() => {
+    let alive = true
+    dominantColor(cover.url).then(c => { if (alive) setBg(c) })
+    return () => { alive = false }
+  }, [cover.url])
+  return (
+    <div className="card-cover card-cover-fit" style={{ background: bg || 'var(--claude-soft)' }}>
+      <img src={cover.url} alt={cover.name} />
+      {count > 1 && <span className="card-cover-count">{count}</span>}
+    </div>
+  )
+}
 
 function CalIcon() {
   return (
@@ -128,20 +145,21 @@ export function KanbanCard({ card, index, columns, onDelete, onMove, onClick, on
           {/* Cover image */}
           {card.coverId && card.images?.length > 0 && (() => {
             const cover = card.images.find(i => i.id === card.coverId)
-            return cover ? (
-              <div className="card-cover">
-                <img src={cover.url} alt={cover.name} />
-                {card.images.length > 1 && <span className="card-cover-count">{card.images.length}</span>}
-              </div>
-            ) : null
+            return cover ? <CardCover cover={cover} count={card.images.length} /> : null
           })()}
+          {card.color && <span className={`card-label-strip lbl-${card.color}`} />}
           <p className="card-title">{card.title}</p>
           {card.description && stripHtml(card.description) && <p className="card-excerpt">{stripHtml(card.description)}</p>}
-          {(card.due || card.dueAt || (card.comments && card.comments.length > 0)) && (
+          {(card.due || card.dueAt || (card.checklist?.length > 0) || (card.comments && card.comments.length > 0)) && (
             <div className="card-footer">
               {(card.due || card.dueAt) && (
                 <span className={`card-date due-${STATUS_COLOR[dueStatus(card)]}`}>
                   <CalIcon />{fmtDueShort(card)}
+                </span>
+              )}
+              {card.checklist?.length > 0 && (
+                <span className={`card-checklist-chip ${card.checklist.every(i => i.done) ? 'all-done' : ''}`}>
+                  ✓ {card.checklist.filter(i => i.done).length}/{card.checklist.length}
                 </span>
               )}
               {card.comments && card.comments.length > 0 && (

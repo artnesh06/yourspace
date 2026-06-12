@@ -1,18 +1,8 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useServerState } from './useServerState'
 
 const STORAGE_KEY = 'ys-activity-v1'
 const MAX_ENTRIES = 300
-
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed
-    }
-  } catch { /* fresh start */ }
-  return []
-}
 
 function genId() {
   return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
@@ -27,18 +17,15 @@ export function relTime(ts) {
 }
 
 export function useActivity() {
-  const [entries, setEntries] = useState(load)
-
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES))) } catch { /* ignore */ }
-  }, [entries])
+  const [entries, setEntries] = useServerState('activity', [], STORAGE_KEY)
+  const entries_ = Array.isArray(entries) ? entries : []
 
   // type: card | column | board | absen | team | ai | system
   const log = useCallback((type, text) => {
-    setEntries(prev => [{ id: genId(), ts: Date.now(), type, text }, ...prev].slice(0, MAX_ENTRIES))
-  }, [])
+    setEntries(prev => [{ id: genId(), ts: Date.now(), type, text }, ...(Array.isArray(prev) ? prev : [])].slice(0, MAX_ENTRIES))
+  }, [setEntries])
 
-  const clear = useCallback(() => setEntries([]), [])
+  const clear = useCallback(() => setEntries([]), [setEntries])
 
-  return { entries, log, clear }
+  return { entries: entries_, log, clear }
 }

@@ -2,35 +2,50 @@
 
 FastAPI backend untuk Your Space (Kanban board + AI Chat agent).
 
-## Setup
+## Cara paling gampang
 
-### 1. Copy .env
+Jalankan dari root project:
+
 ```bash
-cp .env.example .env
+cd "/Users/user/Documents/VIBE CODE/YOUR SPACE"
+./start-local.sh
 ```
 
-Edit `.env` dan masukkan Groq API key (dapatkan dari https://console.groq.com/keys):
-```
-GROQ_API_KEY=your_groq_api_key_here
-```
+Helper ini menyalakan backend di `http://127.0.0.1:8000` dan frontend Vite di port yang tersedia.
 
-### 2. Install & Run
+## Backend saja
+
 ```bash
-./start.sh
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+DEBUG=False APP_BIND=127.0.0.1 APP_PORT=8000 venv/bin/python main.py
 ```
 
 Server akan run di `http://127.0.0.1:8000`
 
-### 3. Check Health
+## Check Health
+
 ```bash
 curl http://127.0.0.1:8000/health
 ```
 
 ## API Endpoints
 
+### Auth
+- **POST** `/api/auth/register` — daftar akun lokal
+- **POST** `/api/auth/login` — login akun lokal
+- **GET** `/api/auth/me` — cek user dari token
+
+### App State
+- **GET/PUT** `/api/state` — load/simpan state app per user
+
+### Upload
+- **POST** `/api/upload` — upload file/card asset
+
 ### Chat
 - **POST** `/api/chat/message` — Send message to AI agent
-- **POST** `/api/chat/test` — Test Groq API connection
 
 ### Health
 - **GET** `/health` — Server health check
@@ -41,30 +56,26 @@ curl http://127.0.0.1:8000/health
 backend/
 ├── app/
 │   ├── core/
-│   │   ├── config.py       # Settings from .env
-│   │   └── database.py     # SQLAlchemy setup
+│   │   ├── config.py       # Settings
+│   │   ├── database.py     # SQLAlchemy setup
+│   │   └── security.py     # Password/JWT helpers
 │   ├── models/
-│   │   └── board.py        # DB models (Board, Card, ChatMessage)
+│   │   └── board.py        # DB models
 │   ├── routes/
-│   │   └── chat.py         # Chat API endpoints
+│   │   ├── auth.py         # Register/login/me
+│   │   ├── chat.py         # AI chat endpoints
+│   │   ├── state.py        # User app state
+│   │   └── upload.py       # Upload endpoint
 │   └── services/
-│       └── chat_service.py # Groq API + Agent logic
+│       └── chat_service.py # AI service
+├── data/                   # Runtime local data, ignored by git
 ├── main.py                 # FastAPI app
 ├── requirements.txt        # Dependencies
 └── start.sh                # Start script
 ```
 
-## Next Steps
-
-1. **Frontend integration** — Update chat.html to call `/api/chat/message`
-2. **Board endpoints** — Add `/api/board/` routes for card operations
-3. **Database** — Persist chat history & board state
-4. **Authentication** — Add user auth (JWT)
-5. **Deploy** — Docker / Heroku / Railway
-
 ## Notes
 
 - Using SQLite by default (can switch to PostgreSQL)
-- Groq API calls handled server-side (safer for API keys)
-- Agentic loop runs up to 5 iterations max
-- All tool execution will be implemented as needed
+- API key handled server-side
+- `backend/data/.secret`, memory, upload, dan database lokal tidak ikut commit

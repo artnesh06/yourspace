@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { dueStatus, STATUS_COLOR, STATUS_LABEL, fmtDueRange, fmtDT } from '../lib/due'
-
-const USER_NAME = 'Anesh'
-const USER_INITIAL = 'A'
+import { dominantColor } from '../lib/dominantColor'
+import { uploadFile } from '../lib/api'
 
 const LABEL_COLORS = ['pink', 'green', 'blue', 'yellow', 'purple']
 
@@ -121,63 +120,74 @@ function DatePicker({ card, onApply, onClose }) {
   }
 
   return (
-    <div className="datepicker tm-pop" onClick={e => e.stopPropagation()}>
+    <div className="datepicker tm-pop dp-horizontal" onClick={e => e.stopPropagation()}>
       <div className="datepicker-head">
         <span className="datepicker-title">Dates</span>
         <button className="datepicker-x" onClick={onClose}>×</button>
       </div>
 
-      <div className="datepicker-nav">
-        <button type="button" className="dp-nav" onClick={() => nav(-12)}>«</button>
-        <button type="button" className="dp-nav" onClick={() => nav(-1)}>‹</button>
-        <span className="datepicker-month">{MONTHS_ID[view.m]} {view.y}</span>
-        <button type="button" className="dp-nav" onClick={() => nav(1)}>›</button>
-        <button type="button" className="dp-nav" onClick={() => nav(12)}>»</button>
-      </div>
+      <div className="dp-cols">
+        {/* kiri: kalender */}
+        <div className="dp-cal">
+          <div className="datepicker-nav">
+            <button type="button" className="dp-nav" onClick={() => nav(-12)}>«</button>
+            <button type="button" className="dp-nav" onClick={() => nav(-1)}>‹</button>
+            <span className="datepicker-month">{MONTHS_ID[view.m]} {view.y}</span>
+            <button type="button" className="dp-nav" onClick={() => nav(1)}>›</button>
+            <button type="button" className="dp-nav" onClick={() => nav(12)}>»</button>
+          </div>
 
-      <div className="datepicker-grid">
-        {DOWS.map(d => <span key={d} className="datepicker-dow">{d}</span>)}
-        {cells.map((d, i) => d === null
-          ? <span key={`x${i}`} />
-          : (
-            <button
-              key={d}
-              type="button"
-              className={[
-                'datepicker-day',
-                isToday(d) ? 'today' : '',
-                useDue && cellKey(d) === dueDate ? 'due' : '',
-                useStart && cellKey(d) === startDate ? 'start' : '',
-                inRange(d) ? 'range' : '',
-              ].filter(Boolean).join(' ')}
-              onClick={() => pickDay(d)}
-            >
-              {d}
-            </button>
-          ))}
-      </div>
+          <div className="datepicker-grid">
+            {DOWS.map(d => <span key={d} className="datepicker-dow">{d}</span>)}
+            {cells.map((d, i) => d === null
+              ? <span key={`x${i}`} />
+              : (
+                <button
+                  key={d}
+                  type="button"
+                  className={[
+                    'datepicker-day',
+                    isToday(d) ? 'today' : '',
+                    useDue && cellKey(d) === dueDate ? 'due' : '',
+                    useStart && cellKey(d) === startDate ? 'start' : '',
+                    inRange(d) ? 'range' : '',
+                  ].filter(Boolean).join(' ')}
+                  onClick={() => pickDay(d)}
+                >
+                  {d}
+                </button>
+              ))}
+          </div>
+        </div>
 
-      <div className="datepicker-field">
-        <span className="datepicker-label">Start date</span>
-        <span className="datepicker-row">
-          <input type="checkbox" checked={useStart}
-            onChange={e => { setUseStart(e.target.checked); if (e.target.checked && !startDate) setStartDate(toDateInput(new Date())) }} />
-          <input type="date" disabled={!useStart} value={startDate} onChange={e => setStartDate(e.target.value)} />
-        </span>
-      </div>
+        {/* kanan: fields + actions */}
+        <div className="dp-side">
+          <div className="datepicker-field">
+            <span className="datepicker-label">Start date</span>
+            <span className="datepicker-row">
+              <input type="checkbox" checked={useStart}
+                onChange={e => { setUseStart(e.target.checked); if (e.target.checked && !startDate) setStartDate(toDateInput(new Date())) }} />
+              <input type="date" disabled={!useStart} value={startDate} onChange={e => setStartDate(e.target.value)} />
+            </span>
+          </div>
 
-      <div className="datepicker-field">
-        <span className="datepicker-label">Due date</span>
-        <span className="datepicker-row">
-          <input type="checkbox" checked={useDue} onChange={e => setUseDue(e.target.checked)} />
-          <input type="date" disabled={!useDue} value={dueDate} onChange={e => setDueDate(e.target.value)} />
-          <input type="time" disabled={!useDue} value={dueTime} onChange={e => setDueTime(e.target.value)} />
-        </span>
-      </div>
+          <div className="datepicker-field">
+            <span className="datepicker-label">Due date</span>
+            <span className="datepicker-row">
+              <input type="checkbox" checked={useDue} onChange={e => setUseDue(e.target.checked)} />
+              <input type="date" disabled={!useDue} value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </span>
+            <span className="datepicker-row" style={{ marginTop: 7 }}>
+              <span style={{ width: 16 }} />
+              <input type="time" disabled={!useDue} value={dueTime} onChange={e => setDueTime(e.target.value)} />
+            </span>
+          </div>
 
-      <div className="datepicker-actions">
-        <button type="button" className="tm-btn-primary" style={{ flex: 1 }} onClick={apply}>Simpan</button>
-        <button type="button" className="tm-btn-ghost" onClick={() => { onApply({ dueAt: null, startAt: null, due: '' }); onClose() }}>Hapus</button>
+          <div className="datepicker-actions">
+            <button type="button" className="tm-btn-primary" style={{ flex: 1 }} onClick={apply}>Simpan</button>
+            <button type="button" className="tm-btn-ghost" onClick={() => { onApply({ dueAt: null, startAt: null, due: '' }); onClose() }}>Hapus</button>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -236,9 +246,11 @@ function Lightbox({ images, index, onClose, onNav, onMakeCover, onDelete, coverI
 }
 
 export function CardModal({
-  card, columnTitle, colIndex, allColumns,
+  card, columnTitle, colIndex, allColumns, user,
   onClose, onUpdate, onDelete, onAddComment, onDeleteComment, onMove, onDuplicate,
 }) {
+  const USER_NAME = user?.name || 'Anesh'
+  const USER_INITIAL = USER_NAME[0].toUpperCase()
   const [title, setTitle]             = useState(card.title)
   const [editingDesc, setEditingDesc] = useState(false)
   const [descExpanded, setDescExpanded] = useState(false)
@@ -255,12 +267,25 @@ export function CardModal({
   const [editingCommentId, setEditingCommentId] = useState(null)
   const [editCommentText, setEditCommentText]   = useState('')
   const [isDragOver, setIsDragOver]   = useState(false)
+  const [files, setFiles]             = useState(card.files || [])
+  const [newCheckItem, setNewCheckItem] = useState('')
+  const [checkOpen, setCheckOpen]     = useState((card.checklist || []).length > 0)
+  const [copied, setCopied]           = useState(false)
+  const [bannerBg, setBannerBg]       = useState(null)
+  const [split, setSplit]             = useState(() => {
+    const saved = Number(localStorage.getItem('ys-modal-split'))
+    return saved >= 45 && saved <= 78 ? saved : 63
+  })
 
   const overlayRef = useRef(null)
   const fileImgRef = useRef(null)
   const richRef    = useRef(null)
   const previewRef = useRef(null)
+  const bodyRef    = useRef(null)
+  const splitRef   = useRef(split)
+  const checkInputRef = useRef(null)
   const skipPersistImages = useRef(true)
+  const dragDepth  = useRef(0)
 
   const currentColId = allColumns.find(col => col.cards?.find(c => c.id === card.id))?.id
   const cover = images.find(i => i.id === coverId)
@@ -280,16 +305,48 @@ export function CardModal({
     skipPersistImages.current = true
     setTitle(card.title)
     setImages(card.images || []); setCoverId(card.coverId || null)
+    setFiles(card.files || [])
     setEditingDesc(false); setMenuOpen(false); setColMenuOpen(false)
     setDatesOpen(false); setLabelsOpen(false); setEditingCommentId(null)
     setDescExpanded(false); setLightbox(-1)
+    setCheckOpen((card.checklist || []).length > 0)
   }, [card.id])
 
   // Attachments persist immediately
   useEffect(() => {
     if (skipPersistImages.current) { skipPersistImages.current = false; return }
-    onUpdate(card.id, { images, coverId })
-  }, [images, coverId])
+    onUpdate(card.id, { images, coverId, files })
+  }, [images, coverId, files])
+
+  // warna dominan buat banner cover (bukan blur)
+  useEffect(() => {
+    if (!cover) return
+    let alive = true
+    dominantColor(cover.url).then(c => { if (alive) setBannerBg(c) })
+    return () => { alive = false }
+  }, [cover?.url])
+
+  // drag divider antara panel kiri & kanan
+  useEffect(() => { splitRef.current = split }, [split])
+  function startSplitDrag(e) {
+    e.preventDefault()
+    const move = ev => {
+      const body = bodyRef.current
+      if (!body) return
+      const r = body.getBoundingClientRect()
+      const pct = Math.min(78, Math.max(45, ((ev.clientX - r.left) / r.width) * 100))
+      setSplit(pct)
+    }
+    const up = () => {
+      localStorage.setItem('ys-modal-split', String(Math.round(splitRef.current)))
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('mouseup', up)
+      document.body.style.cursor = ''
+    }
+    document.body.style.cursor = 'col-resize'
+    document.addEventListener('mousemove', move)
+    document.addEventListener('mouseup', up)
+  }
 
   // ukur overflow deskripsi → tampilkan "Show more"
   useEffect(() => {
@@ -318,19 +375,65 @@ export function CardModal({
     if (url) exec('createLink', url)
   }
 
-  function addFiles(files) {
-    Array.from(files).forEach(file => {
-      if (!file.type.startsWith('image/')) return
-      const reader = new FileReader()
-      reader.onload = ev => {
-        const newImg = { id: genImgId(), name: file.name, url: ev.target.result, uploadedAt: new Date().toISOString() }
+  function addFiles(fileList) {
+    Array.from(fileList).forEach(async file => {
+      let url
+      try {
+        // upload ke server → URL (bukan base64, biar nggak jebol storage)
+        const uploaded = await uploadFile(file)
+        url = uploaded.url
+      } catch {
+        // fallback offline: base64
+        url = await new Promise(resolve => {
+          const reader = new FileReader()
+          reader.onload = ev => resolve(ev.target.result)
+          reader.readAsDataURL(file)
+        })
+      }
+      if (file.type.startsWith('image/')) {
+        const newImg = { id: genImgId(), name: file.name, url, uploadedAt: new Date().toISOString() }
         setImages(prev => {
           if (prev.length === 0) setCoverId(newImg.id)
           return [...prev, newImg]
         })
+      } else {
+        const newFile = {
+          id: genImgId(), name: file.name, url,
+          size: file.size, type: file.type || 'file', uploadedAt: new Date().toISOString(),
+        }
+        setFiles(prev => [...prev, newFile])
       }
-      reader.readAsDataURL(file)
     })
+  }
+
+  /* checklist */
+  const checklist = card.checklist || []
+  const checkDone = checklist.filter(i => i.done).length
+  function addCheckItem(e) {
+    e.preventDefault()
+    const text = newCheckItem.trim()
+    if (!text) return
+    onUpdate(card.id, { checklist: [...checklist, { id: genImgId(), text, done: false }] })
+    setNewCheckItem('')
+  }
+  function toggleCheckItem(id) {
+    onUpdate(card.id, { checklist: checklist.map(i => i.id === id ? { ...i, done: !i.done } : i) })
+  }
+  function deleteCheckItem(id) {
+    onUpdate(card.id, { checklist: checklist.filter(i => i.id !== id) })
+  }
+
+  function copyCardLink() {
+    const link = `${location.origin}${location.pathname}#card=${card.id}`
+    navigator.clipboard?.writeText(link)
+    setCopied(true)
+    setTimeout(() => { setCopied(false); setMenuOpen(false) }, 1200)
+  }
+
+  function fmtSize(bytes) {
+    if (!bytes) return ''
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   function handleDeleteImg(imgId) {
@@ -369,15 +472,26 @@ export function CardModal({
     <div className="modal-overlay open" ref={overlayRef}
       onClick={e => { if (e.target === overlayRef.current) onClose() }}>
       <div className="tm-modal"
-        onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
-        onDragLeave={() => setIsDragOver(false)}
-        onDrop={e => { e.preventDefault(); setIsDragOver(false); addFiles(e.dataTransfer.files) }}
+        onDragEnter={e => { e.preventDefault(); dragDepth.current++; setIsDragOver(true) }}
+        onDragOver={e => e.preventDefault()}
+        onDragLeave={() => { dragDepth.current = Math.max(0, dragDepth.current - 1); if (dragDepth.current === 0) setIsDragOver(false) }}
+        onDrop={e => { e.preventDefault(); dragDepth.current = 0; setIsDragOver(false); addFiles(e.dataTransfer.files) }}
       >
 
-        {/* ── Cover banner paling atas (full width) ── */}
+        {/* drop overlay — seluruh pop-up jadi drop zone */}
+        {isDragOver && (
+          <div className="tm-drop-overlay">
+            <div className="tm-drop-overlay-inner">
+              <span className="tm-drop-emoji">📎</span>
+              Lepas file di sini — gambar & dokumen
+            </div>
+          </div>
+        )}
+
+        {/* ── Cover banner paling atas (full width, bg warna dominan) ── */}
         {cover && (
-          <div className="tm-cover-banner" onClick={() => setLightbox(images.findIndex(i => i.id === cover.id))} title="Klik untuk lihat full">
-            <div className="tm-cover-blur" style={{ backgroundImage: `url(${cover.url})` }} />
+          <div className="tm-cover-banner" style={{ background: bannerBg || '#ECEAE2' }}
+            onClick={() => setLightbox(images.findIndex(i => i.id === cover.id))} title="Klik untuk lihat full">
             <img className="tm-cover-banner-img" src={cover.url} alt={cover.name} />
             {images.length > 1 && <span className="tm-cover-count">{images.length} gambar</span>}
           </div>
@@ -398,6 +512,12 @@ export function CardModal({
             </button>
             {menuOpen && (
               <div className="tm-pop tm-menu">
+                <button onClick={copyCardLink}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                  </svg>
+                  {copied ? 'Link copied ✓' : 'Copy link'}
+                </button>
                 <button onClick={() => { onDuplicate?.(card.id); onClose() }}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="5" width="13" height="13"/><path d="M8 3h7a2 2 0 0 1 2 2v10"/>
@@ -422,9 +542,9 @@ export function CardModal({
           </button>
         </div>
 
-        <div className="tm-body">
+        <div className="tm-body" ref={bodyRef}>
           {/* ── LEFT ── */}
-          <div className={`tm-left ${isDragOver ? 'drag-over' : ''}`}>
+          <div className="tm-left" style={{ width: `${split}%`, flex: 'none' }}>
             {/* Column badge */}
             <div className="tm-badge-wrap">
               <button className="tm-badge" onClick={() => setColMenuOpen(v => !v)}>
@@ -512,7 +632,8 @@ export function CardModal({
                 )}
               </div>
 
-              <button className="tm-pill" title="Checklist (coming soon)">
+              <button className="tm-pill" title="Checklist"
+                onClick={() => { setCheckOpen(true); setTimeout(() => checkInputRef.current?.focus(), 80) }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
                 </svg>
@@ -604,8 +725,57 @@ export function CardModal({
               )}
             </div>
 
+            {/* Checklist */}
+            {(checkOpen || checklist.length > 0) && (
+              <div className="tm-section">
+                <div className="tm-section-head">
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                  </svg>
+                  <span>Checklist</span>
+                  {checklist.length > 0 && <span className="tm-check-count">{checkDone}/{checklist.length}</span>}
+                </div>
+
+                {checklist.length > 0 && (
+                  <div className="tm-check-progress">
+                    <span className="tm-check-pct">{Math.round((checkDone / checklist.length) * 100)}%</span>
+                    <div className="tm-check-bar">
+                      <div className={`tm-check-fill ${checkDone === checklist.length ? 'complete' : ''}`}
+                        style={{ width: `${(checkDone / checklist.length) * 100}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="tm-check-list">
+                  {checklist.map(item => (
+                    <div key={item.id} className={`tm-check-item ${item.done ? 'done' : ''}`}>
+                      <button className={`tm-check ${item.done ? 'done' : ''}`} onClick={() => toggleCheckItem(item.id)}>
+                        {item.done && (
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12"/>
+                          </svg>
+                        )}
+                      </button>
+                      <span className="tm-check-text">{item.text}</span>
+                      <button className="tm-check-del" onClick={() => deleteCheckItem(item.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+
+                <form className="tm-check-add" onSubmit={addCheckItem}>
+                  <input
+                    ref={checkInputRef}
+                    placeholder="Tambah item…"
+                    value={newCheckItem}
+                    onChange={e => setNewCheckItem(e.target.value)}
+                  />
+                  {newCheckItem.trim() && <button type="submit" className="tm-btn-primary">Add</button>}
+                </form>
+              </div>
+            )}
+
             {/* Attachments */}
-            {images.length > 0 && (
+            {(images.length > 0 || files.length > 0) && (
               <div className="tm-section">
                 <div className="tm-section-head">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -637,12 +807,36 @@ export function CardModal({
                       </div>
                     </div>
                   ))}
+
+                  {/* file non-gambar */}
+                  {files.map(f => (
+                    <div key={f.id} className="attachment-item">
+                      <span className="attachment-file-icon">📄</span>
+                      <div className="attachment-info">
+                        <span className="attachment-name">{f.name}</span>
+                        <span className="attachment-date">{fmtSize(f.size)} · {relTime(f.uploadedAt)}</span>
+                      </div>
+                      <div className="attachment-actions">
+                        <a className="attachment-cover-btn" href={f.url} download={f.name}>⬇ Download</a>
+                        <button className="attachment-del-btn" onClick={() => setFiles(prev => prev.filter(x => x.id !== f.id))}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            <input ref={fileImgRef} type="file" accept="image/*" multiple
+            <input ref={fileImgRef} type="file" multiple
               style={{ display: 'none' }} onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+          </div>
+
+          {/* ── garis pemisah, drag buat resize ── */}
+          <div className="tm-split" onMouseDown={startSplitDrag} title="Tarik buat atur lebar panel">
+            <span className="tm-split-line" />
           </div>
 
           {/* ── RIGHT — Comments and activity ── */}

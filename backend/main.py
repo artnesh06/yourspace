@@ -1,9 +1,11 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db
-from app.routes import chat, board
+from app.routes import chat, board, auth, state, upload
 
 DEFAULT_CORS_ORIGINS = [
     "http://localhost:5173",
@@ -44,6 +46,14 @@ app.add_middleware(
 # Routes
 app.include_router(chat.router)
 app.include_router(board.router)
+app.include_router(auth.router)
+app.include_router(state.router)
+app.include_router(upload.router)
+
+# Uploaded files (gambar attachment dll)
+_uploads_dir = Path(__file__).resolve().parent / "data" / "uploads"
+_uploads_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads_dir)), name="uploads")
 
 @app.get("/")
 async def root():

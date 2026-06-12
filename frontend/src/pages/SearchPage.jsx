@@ -45,9 +45,15 @@ const CHIPS = [
   { icon: '🤝', label: 'Kolaborasi', q: 'kolaborasi' },
 ]
 
-export function SearchPage({ boards, onOpenCard }) {
+export function SearchPage({ boards, userName = 'Anesh', onOpenCard, onAskAI }) {
   const [q, setQ] = useState('')
   const hasQuery = q.trim().length > 0
+
+  function askAI() {
+    if (!q.trim()) return
+    onAskAI?.(q.trim())
+    setQ('')
+  }
 
   const results = useMemo(() => {
     const query = q.trim().toLowerCase()
@@ -72,7 +78,7 @@ export function SearchPage({ boards, onOpenCard }) {
         <div className="claude-hero">
           <h1 className="claude-greeting">
             <ClaudeStar />
-            {greeting()}, Anesh
+            {greeting()}, {userName.split(' ')[0]}
           </h1>
         </div>
 
@@ -80,15 +86,20 @@ export function SearchPage({ boards, onOpenCard }) {
           <input
             autoFocus
             className="claude-input"
-            placeholder="Apa yang bisa saya bantu hari ini?"
+            placeholder="Cari card, atau tanya AI apa aja…"
             value={q}
             onChange={e => setQ(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Escape') setQ('') }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') setQ('')
+              if (e.key === 'Enter') askAI()
+            }}
           />
           <div className="claude-input-foot">
             <span className="claude-plus">+</span>
             <span className="claude-model">
-              Search semua board
+              {hasQuery
+                ? <button className="claude-ask-btn" onClick={askAI}>✦ Tanya AI <kbd>↵</kbd></button>
+                : 'Search semua board · Enter = tanya AI'}
               {hasQuery && <button className="search-clear" onClick={() => setQ('')}>×</button>}
             </span>
           </div>

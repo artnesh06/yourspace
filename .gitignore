@@ -46,6 +46,13 @@ yarn-error.log*
 .cache/
 .vite/
 .claude/
+frontend/src_backup_*/
 
-# User-specific AI memory (generated at runtime)
+# Local runtime data
+backend/data/.secret
 backend/data/memory/*.md
+!backend/data/memory/.gitkeep
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+backend/data/runtime/*
+!backend/data/runtime/.gitkeep

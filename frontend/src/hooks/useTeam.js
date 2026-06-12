@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback } from 'react'
+import { useServerState } from './useServerState'
 
 const STORAGE_KEY = 'ys-team-v1'
 
@@ -16,27 +17,13 @@ function defaultTeam() {
   }
 }
 
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed.members) && parsed.members.length > 0) return parsed
-    }
-  } catch { /* fresh start */ }
-  return defaultTeam()
-}
-
 export function fmtIDR(n) {
   return 'Rp ' + (n || 0).toLocaleString('id-ID')
 }
 
 export function useTeam() {
-  const [state, setState] = useState(load)
-
-  useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)) } catch { /* ignore */ }
-  }, [state])
+  const [state, setState] = useServerState('team', defaultTeam(), STORAGE_KEY)
+  const members_ = state?.members?.length ? state.members : defaultTeam().members
 
   const addMember = useCallback((name, role = 'Member', salary = 5000000) => {
     const member = {
@@ -47,19 +34,19 @@ export function useTeam() {
       color: AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
       joined: new Date().toISOString().slice(0, 10),
     }
-    setState(prev => ({ members: [...prev.members, member] }))
+    setState(prev => ({ members: [...(prev?.members || []), member] }))
     return member
   }, [])
 
   const updateMember = useCallback((id, changes) => {
     setState(prev => ({
-      members: prev.members.map(m => m.id === id ? { ...m, ...changes } : m),
+      members: (prev?.members || []).map(m => m.id === id ? { ...m, ...changes } : m),
     }))
   }, [])
 
   const removeMember = useCallback((id) => {
-    setState(prev => ({ members: prev.members.filter(m => m.id !== id) }))
+    setState(prev => ({ members: (prev?.members || []).filter(m => m.id !== id) }))
   }, [])
 
-  return { members: state.members, addMember, updateMember, removeMember }
+  return { members: members_, addMember, updateMember, removeMember }
 }

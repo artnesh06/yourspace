@@ -157,7 +157,7 @@ function WeekChart({ counts }) {
 }
 
 /* ── Home ─────────────────────────────────────────────────────── */
-export function HomePage({ boards, board, attendance, team, activity, onNavigate, onOpenChat }) {
+export function HomePage({ boards, board, attendance, team, activity, userName = 'Anesh', onNavigate, onOpenChat }) {
   const [now, setNow] = useState(new Date())
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
@@ -206,7 +206,7 @@ export function HomePage({ boards, board, attendance, team, activity, onNavigate
                   return <line key={i} x1={12 + Math.cos(a) * 2.4} y1={12 + Math.sin(a) * 2.4} x2={12 + Math.cos(a) * 9.4} y2={12 + Math.sin(a) * 9.4} stroke="#D97757" strokeWidth="2.4" strokeLinecap="round" />
                 })}
               </svg>
-              {greeting(now)}, Anesh
+              {greeting(now)}, {userName.split(' ')[0]}
             </h1>
             <p className="home-date">{dateStr}</p>
           </div>

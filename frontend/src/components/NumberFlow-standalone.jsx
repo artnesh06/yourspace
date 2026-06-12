@@ -4,8 +4,12 @@ import { useEffect, useState } from 'react'
    <NumberFlow value={72} />
    <NumberFlow value={price} format={fmtIDR} className="text-xl" /> */
 
-function Digit({ char }) {
-  const [state, setState] = useState({ prev: char, curr: char, dir: null, key: 0 })
+function Digit({ char, mountRoll }) {
+  const [state, setState] = useState(() =>
+    mountRoll && char !== '0'
+      ? { prev: '0', curr: char, dir: 'up', key: 1 }
+      : { prev: char, curr: char, dir: null, key: 0 }
+  )
 
   useEffect(() => {
     setState(s => {
@@ -36,7 +40,7 @@ function Digit({ char }) {
   )
 }
 
-export default function NumberFlow({ value, format, className = '' }) {
+export default function NumberFlow({ value, format, className = '', mountRoll = true }) {
   const str = format ? format(value) : String(value)
   const chars = str.split('')
   const n = chars.length
@@ -46,7 +50,7 @@ export default function NumberFlow({ value, format, className = '' }) {
       {chars.map((ch, i) =>
         /\d/.test(ch)
           // key dihitung dari kanan biar digit tetap "miliknya" pas jumlah digit berubah
-          ? <Digit key={`d${n - i}`} char={ch} />
+          ? <Digit key={`d${n - i}`} char={ch} mountRoll={mountRoll} />
           : <span key={`s${n - i}-${ch}`} className="nf-char nf-static">{ch}</span>
       )}
     </span>

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors,
   DragOverlay, closestCorners, defaultDropAnimationSideEffects,
@@ -16,6 +16,10 @@ import { useChat } from './hooks/useChat'
 import { useAttendance, fmtDuration } from './hooks/useAttendance'
 import { useTeam } from './hooks/useTeam'
 import { useActivity } from './hooks/useActivity'
+import { useTheme, THEMES } from './hooks/useTheme'
+import { useAuth } from './hooks/useAuth'
+import { AuthPage } from './pages/AuthPage'
+import { dueStatus, fmtDueShort } from './lib/due'
 import { HomePage } from './pages/HomePage'
 import { SearchPage } from './pages/SearchPage'
 import { ClockPage } from './pages/ClockPage'
@@ -36,7 +40,24 @@ function SidebarIcon({ active, title, onClick, children }) {
   )
 }
 
+/* ── Root: auth gate ── */
 export default function App() {
+  const { user, checking, login, register, logout } = useAuth()
+  const [theme, setTheme] = useTheme()
+
+  if (checking) {
+    return (
+      <div className="auth-page">
+        <div className="auth-splash">✦</div>
+      </div>
+    )
+  }
+  if (!user) return <AuthPage onLogin={login} onRegister={register} />
+  return <Workspace key={user.id} user={user} onLogout={logout} theme={theme} setTheme={setTheme} />
+}
+
+/* ── Workspace: app utama (hanya render setelah login) ── */
+function Workspace({ user, onLogout, theme, setTheme }) {
   const [page, setPage]                 = useState('home')
   const [chatOpen, setChatOpen]         = useState(false)
   const [activeItem, setActiveItem]     = useState(null)
@@ -60,6 +81,7 @@ export default function App() {
   const team       = useTeam()
   const activity   = useActivity()
   const { log }    = activity
+  const remindedRef = useRef(false)
 
   // ── Logged board ops (UI) ──────────────────────────────────────
   const addCardLogged = useCallback((columnId, title, description = '', due = '') => {
@@ -123,7 +145,40 @@ export default function App() {
     team: team.members.map(m => ({ id: m.id, name: m.name, role: m.role, salary: m.salary })),
   }), [page, attendance, team])
 
-  const { messages, loading, sendMessage, stopStream, model, setModel } = useChat({ getBoardSummary, getAppContext, onToolCall: handleToolCall })
+  const { messages, loading, sendMessage, stopStream, addLocalAssistant, model, setModel } = useChat({ userId: user.id, getBoardSummary, getAppContext, onToolCall: handleToolCall })
+
+  // ── AI reminder: pas chat dibuka, ingetin deadline hari ini / telat ──
+  useEffect(() => {
+    if (!chatOpen || remindedRef.current) return
+    remindedRef.current = true
+    const urgent = board.columns.flatMap(c => c.cards)
+      .filter(c => !c.posted && ['late', 'today'].includes(dueStatus(c)))
+    if (urgent.length > 0) {
+      addLocalAssistant(
+        `⏰ Reminder! Ada ${urgent.length} task yang butuh perhatian:\n` +
+        urgent.map(c => `• **${c.title}** — ${dueStatus(c) === 'late' ? 'telat' : 'due hari ini'} (${fmtDueShort(c)})`).join('\n')
+      )
+    }
+  }, [chatOpen, board, addLocalAssistant])
+
+  // ── buka card dari link #card=ID ──
+  useEffect(() => {
+    const m = location.hash.match(/#card=([\w-]+)/)
+    if (!m) return
+    const id = m[1]
+    for (const b of boards) {
+      for (const col of b.columns) {
+        const c = col.cards.find(x => x.id === id)
+        if (c) {
+          if (b.id !== activeId) switchTab(b.id)
+          setPage('board')
+          setModalCard(c)
+          return
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── Filter / Search ────────────────────────────────────────────
   const COLOR_FILTERS = ['all', 'pink', 'green', 'blue', 'yellow', 'purple']
@@ -292,7 +347,33 @@ export default function App() {
           </SidebarIcon>
         </div>
         <div className="sb-icons-bottom">
-          <div className="sb-avatar" title="Anesh — Owner">A</div>
+          <SidebarIcon
+            title={`Tema: ${theme}`}
+            onClick={() => setTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length])}
+          >
+            {theme === 'light' && (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+              </svg>
+            )}
+            {theme === 'system' && (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>
+              </svg>
+            )}
+            {theme === 'dark' && (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+              </svg>
+            )}
+          </SidebarIcon>
+          <button
+            className="sb-avatar"
+            title={`${user.name} — klik buat logout`}
+            onClick={() => confirm(`Logout dari akun ${user.email}?`) && onLogout()}
+          >
+            {user.name[0].toUpperCase()}
+          </button>
         </div>
       </aside>
 
@@ -389,10 +470,11 @@ export default function App() {
         {page === 'home' && (
           <HomePage
             boards={boards} board={board} attendance={attendance} team={team} activity={activity}
-            onNavigate={setPage} onOpenChat={() => setChatOpen(true)}
+            userName={user.name} onNavigate={setPage} onOpenChat={() => setChatOpen(true)}
           />
         )}
-        {page === 'search'   && <SearchPage boards={boards} onOpenCard={openCardFromPage} />}
+        {page === 'search'   && <SearchPage boards={boards} userName={user.name} onOpenCard={openCardFromPage}
+          onAskAI={q => { setChatOpen(true); sendMessage(q) }} />}
         {page === 'absen'    && <ClockPage attendance={attendance} onLog={log} />}
         {page === 'calendar' && <CalendarPage boards={boards} onOpenCard={openCardFromPage} />}
         {page === 'team'     && <TeamPage team={team} onLog={log} />}
@@ -464,6 +546,7 @@ export default function App() {
 
       {freshModalCard && (
         <CardModal
+          user={user}
           card={freshModalCard}
           columnTitle={findCardColumn(freshModalCard.id)?.title || ''}
           colIndex={colIndex} allColumns={board.columns}
