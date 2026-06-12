@@ -57,7 +57,15 @@ export function useMultiBoard() {
     })
   }, [setState])
 
-  const safeBoards = state?.boards?.length ? state.boards : defaultState().boards
+  // normalisasi: data server yang nggak lengkap nggak boleh bikin crash
+  const safeBoards = (state?.boards?.length ? state.boards : defaultState().boards)
+    .map(b => ({
+      ...b,
+      label: b.label || 'Board',
+      columns: Array.isArray(b.columns)
+        ? b.columns.map(c => ({ ...c, cards: Array.isArray(c.cards) ? c.cards : [] }))
+        : [],
+    }))
   const activeBoard = safeBoards.find(b => b.id === state?.activeId) || safeBoards[0]
   const board = { columns: activeBoard.columns }
 

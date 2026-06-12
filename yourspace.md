@@ -1,188 +1,150 @@
-# YOUR SPACE — Product Doc & Roadmap to Live
+# YOUR SPACE — Handoff Doc & Roadmap
 
-> Kanban board + office management + AI assistant.
-> Target: **live di internet** — orang bisa daftar, login, pakai semua fitur tanpa lag, dan share board untuk kolaborasi bareng.
+> **Dokumen serah-terima.** Baca ini dari atas ke bawah dan lo bisa nerusin project ini tanpa konteks lain.
+> Produk: kanban board + office management (absen, tim, payroll) + AI assistant (Claude API).
+> Target akhir: **live di internet** — orang bisa daftar, login, pakai semua fitur, dan share board untuk kolaborasi.
 
-Terakhir di-update: 12 Juni 2026 · **Progress keseluruhan: ~70%**
-
----
-
-## 1. 📊 Status Sekarang (apa yang udah jadi)
-
-### Halaman (7/7 aktif)
-| Halaman | Status | Catatan |
-|---|---|---|
-| 🏠 Home | ✅ | Dashboard: greeting dinamis, jam live, stat NumberFlow, heatmap GitHub-style, chart 7 hari, deadline, feed aktivitas |
-| 🔍 Search | ✅ | Gaya Claude.ai (serif + starburst), cari lintas board, Enter = tanya AI |
-| ▦ Board | ✅ | Kanban multi-board, drag & drop, filter warna, cover fit + warna dominan, label strip, chip status deadline |
-| 🕐 Absensi | ✅ | Clock in/out, timer live, jam analog, confetti, streak, riwayat |
-| 📅 Kalender | ✅ | Plot due date semua board, navigasi bulan animasi, klik tanggal → task |
-| 👥 Tim | ✅ | CRUD anggota, role, gaji pokok |
-| 💳 Payroll | ✅ | Gaji prorata dari absensi + bonus streak, slip gaji |
-
-### Pop-up Card (lengkap)
-- ✅ Cover banner full-width (klik → lightbox fullscreen)
-- ✅ Rich description (paste dari Docs format kebawa) + collapse "Show more"
-- ✅ Date picker ala Trello (kalender + start/due + jam, layout horizontal)
-- ✅ Warna status deadline: 🔴 telat/hari H · 🟡 ≤3 hari · 🔵 terjadwal · 🍦 kosong · 🟢 selesai
-- ✅ Checklist + progress bar + chip "2/5" di card
-- ✅ Multi-attachment (gambar + file PDF dll), drag & drop di seluruh modal
-- ✅ Lightbox fullscreen (arrows, download, make cover, delete)
-- ✅ Panel kiri/kanan resizable (drag divider), komentar + edit
-- ✅ Copy link card (#card=ID)
-
-### AI Assistant
-- ✅ Streaming via Claude API (model bisa diganti)
-- ✅ 14 tools: card/kolom CRUD, navigate page, clock in/out, add team member, save memory
-- ✅ Konteks app (halaman aktif, absensi, tim) dikirim tiap pesan
-- ✅ Reminder deadline otomatis pas chat dibuka
-- ✅ Memory per-user (markdown di backend)
-
-### Lainnya
-- ✅ Tema Light / System / Night (dark ala Claude)
-- ✅ NumberFlow rolling digits di semua stat
-- ✅ Activity log lokal
-- ✅ Auth lokal: daftar, login, token user, dan halaman login/register
-- ✅ Local helper `start-local.sh` untuk nyalain backend + frontend sekali jalan
-- ✅ Frontend dev proxy/env diarahkan ke backend `127.0.0.1:8000`
-- ✅ Repo GitHub: artnesh06/yourspace
+Terakhir update: **12 Juni 2026** · Progress: **~72%** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E
 
 ---
 
-## 2. 🧑‍💼 Sudut Pandang Product Manager
-
-**Masalah inti menuju live:** auth lokal sudah jalan dan state mulai pindah ke backend, tapi production persistence + sharing belum selesai. Artinya: app sudah bisa dicoba sebagai single-user lokal, tapi belum layak dibuka publik sampai database production, upload storage, dan permission share rapi.
-
-**Prioritas (urutan eksekusi):**
-1. **P0 — Auth & akun production-ready** (JWT sudah lokal; perlu hardening, CORS, rate limit, deploy env)
-2. **P0 — Migrasi data ke database production** (boards, attendance, team, activity → PostgreSQL/Supabase)
-3. **P0 — Deploy** (frontend Vercel, backend Railway/Fly + Postgres)
-4. **P1 — Share board** (link invite: view-only / editor)
-5. **P1 — Kolaborasi realtime** (websocket — lihat perubahan orang lain live)
-6. **P2 — Polish**: onboarding, empty states, error states, mobile responsive
-7. **P2 — Cleanup teknis** (hapus kode legacy)
-
-**Definisi "Live & layak dipakai orang":**
-- [ ] Orang asing bisa daftar → bikin board → balik besok datanya masih ada
-- [ ] Share link board ke teman → teman bisa lihat/edit
-- [ ] Nggak ada error di console, load < 2 detik
-- [ ] AI chat jalan dengan API key di server (bukan exposed)
-
-## 3. 🎨 Sudut Pandang UX Designer
-
-**Yang udah bagus:** tema konsisten (cream/ink/ember), animasi halus, dark mode rapi.
-
-**Gap yang harus dibenerin sebelum live:**
-- [ ] **Mobile responsive** — sidebar & board belum dioptimalkan buat layar kecil
-- [ ] **Empty states** — user baru lihat board kosong tanpa arahan; butuh onboarding ("Bikin card pertama lo")
-- [ ] **Loading states** — belum ada skeleton/spinner pas data dimuat dari server
-- [ ] **Error states** — kalau API mati, user cuma lihat "Error: HTTP 502" mentah
-- [ ] **Konfirmasi destruktif** — masih pakai `confirm()` browser; ganti modal custom
-- [ ] **Toast notifications** — feedback "tersimpan ✓" belum ada
-- [ ] **Keyboard a11y** — fokus trap di modal, esc handling (sebagian udah)
-
-## 4. 🖥 Sudut Pandang Senior Frontend Engineer
-
-**Utang teknis:**
-- [ ] **State management** — semua di localStorage + props drilling; pas pindah ke server butuh layer data (React Query/SWR) + optimistic updates
-- [ ] **App.css 3.000+ baris** dengan blok duplikat (`.tm-modal` ×3, `.lightbox-img` ×2, dll — sengaja override cascade tapi harus dikonsolidasi) dan CSS mati (blok `.detail-modal` lama tidak dipakai lagi)
-- [ ] **Komponen besar** — `App.jsx` ~600 baris, `CardModal.jsx` ~800; pecah jadi modul
-- [ ] **Gambar sebagai base64 di localStorage** — bakal jebol quota 5MB; harus upload ke storage (S3/Supabase Storage)
-- [ ] **Belum ada error boundary** React
-- [ ] **Belum ada test** sama sekali
-
-**Bug yang ketemu & status:**
-- ✅ FIXED: file orphan `hooks/useCountUp.js` (sudah dihapus)
-- ✅ Build vite bersih, zero error
-- ⚠️ Hooks-order warning di console = artefak HMR (hilang setelah reload, bukan bug runtime)
-- ⚠️ `PAGE_TITLES` masih punya entry `activity` (halaman sudah dihapus — harmless, cleanup nanti)
-
-## 5. ⚙️ Sudut Pandang Senior Backend Engineer
-
-**Sekarang:** FastAPI + SQLite, auth JWT lokal, state app per user, upload endpoint, chat endpoint, dan healthcheck. Local flow register/login sudah jalan saat backend `8000` dan frontend Vite aktif.
-
-**Yang harus dibangun untuk live:**
-- [x] **Auth basic lokal**: register, login, JWT/session, password hash
-- [ ] **Auth hardening production**: rate limit, refresh/session policy, CORS domain produksi
-- [ ] **Schema DB beneran**: users, boards, columns, cards, attachments, attendance, team_members, activity, board_shares
-- [ ] **Migrasi SQLite → PostgreSQL** (Supabase/Neon — sudah ada commit "PostgreSQL support" sebelumnya, tinggal diaktifkan)
-- [ ] **API CRUD per-resource** (bukan blob) + authorization check per board
-- [ ] **Share & permission**: tabel `board_shares (board_id, user_id/email, role: viewer|editor)` + invite link token
-- [ ] **Realtime**: WebSocket per board room (FastAPI native / Supabase Realtime)
-- [ ] **File upload** endpoint → object storage, ganti base64
-- [ ] **Cleanup**: hapus path Groq legacy (chat.py, chat_service.py — ~300 baris mati)
-- [ ] **Security**: API key Claude di env server ✓ (sudah), CORS dikunci ke domain produksi, secrets nggak ke-commit (⚠️ `.env` berisi API key pernah ke-push — **harus rotate key & tambah .gitignore**)
-
-## 6. 🔥 Sudut Pandang Pro User
-
-- [ ] **Keyboard shortcuts** (n = card baru, / = search, cmd+k command palette)
-- [ ] **Undo** (ctrl+z) setelah hapus card
-- [ ] **Bulk action** (pilih banyak card, pindah sekaligus)
-- [ ] **Export** board ke CSV/JSON
-- [ ] **Notifikasi** deadline (browser notification / email)
-- [ ] **Template board** (Content Plan, Sprint, OKR)
-
----
-
-## 7. 🗺 ROADMAP KE LIVE (checklist master)
-
-### Fase 1 — Fondasi (blocker, ~1 sesi panjang)
-- [ ] 1.1 Schema PostgreSQL + SQLAlchemy models (users, boards, cards, dst)
-- [x] 1.2 Auth API basic: register, login, me (JWT lokal)
-- [x] 1.3 Halaman Login & Sign up di frontend
-- [ ] 1.4 Migrasi semua hook localStorage → API production-ready (boards, absen, tim, activity)
-- [ ] 1.5 Upload gambar ke storage (bukan base64)
-
-### Fase 2 — Go Live (deploy)
-- [ ] 2.1 Rotate API key Anthropic + bersihkan .env dari git history
-- [ ] 2.2 Backend deploy (Railway/Fly/Render) + Postgres (Supabase/Neon)
-- [ ] 2.3 Frontend deploy Vercel + env VITE_API_BASE_URL
-- [ ] 2.4 Domain + HTTPS + CORS produksi
-- [ ] 2.5 Smoke test end-to-end di produksi
-
-### Fase 3 — Kolaborasi
-- [ ] 3.1 Share board via invite link (viewer/editor)
-- [ ] 3.2 Realtime sync (WebSocket) — card pindah kelihatan live
-- [ ] 3.3 Presence ("Budi lagi lihat board ini")
-- [ ] 3.4 Komentar dengan nama user beneran (bukan hardcode "Anesh")
-
-### Fase 4 — Polish
-- [ ] 4.1 Mobile responsive penuh
-- [ ] 4.2 Empty/loading/error states + toast
-- [ ] 4.3 Onboarding user baru
-- [ ] 4.4 Cleanup: CSS konsolidasi, hapus Groq legacy, pecah komponen besar
-- [ ] 4.5 Keyboard shortcuts + undo
-- [ ] 4.6 Error boundary + monitoring (Sentry)
-
----
-
-## 8. Arsitektur Target
-
-```
-[Browser React/Vite] ──HTTPS──> [FastAPI @ Railway]──> [PostgreSQL @ Supabase]
-        │                            │                      │
-        │<──── WebSocket realtime ───┤                [Storage: gambar]
-        │                            └──> [Claude API (key di server)]
-   [Vercel CDN]
-```
-
-## 9. Local Dev & Batas Folder
-
-**Local start utama:**
+## 0. CARA JALANIN LOKAL (mulai dari sini)
 
 ```bash
-cd "/Users/user/Documents/VIBE CODE/YOUR SPACE"
+# Backend (FastAPI, port 8000) — WAJIB pakai venv/bin/python (BUKAN source activate, lihat Gotcha #1)
+cd backend && venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+
+# Frontend (Vite React, port 5173)
+cd frontend && npm run dev
+
+# Atau sekali jalan:
 ./start-local.sh
 ```
 
-Kalau backend sehat, `http://127.0.0.1:8000/health` akan balikin `{"status":"healthy"}`. Frontend mulai dari `http://127.0.0.1:5173`; kalau penuh, Vite pakai port berikutnya seperti `5174`.
+- Buka `http://localhost:5173` → halaman **login/daftar** muncul. Daftar akun baru → masuk workspace.
+- Vite dev **proxy** meneruskan `/api/*` & `/uploads/*` ke `127.0.0.1:8000` (lihat `frontend/vite.config.js`).
+- Test user yang sudah ada di DB lokal: `anesh@test.com` / `rahasia123`.
+- Env backend: `backend/.env` → `ANTHROPIC_API_KEY` (untuk AI chat), `AI_PROVIDER=claude`, `DATABASE_URL` (default SQLite `yourspace.db`).
 
-**Batas folder:**
-- `frontend/` = UI React/Vite.
-- `backend/` = FastAPI, auth, database, upload, AI/chat.
-- `backend/data/` = data runtime lokal; `.secret`, memory user, upload, dan database lokal tidak ikut commit.
-- `frontend/src/` = source UI aktif.
-- `frontend/src_backup_*/` = backup sementara, di-ignore.
-- `css/` dan `js/` = legacy/static lama; jangan campur kode app baru kecuali sengaja maintain versi lama.
+---
 
-**Progress: ██████████████░░░░░░ ~70%** — produk single-user udah kaya & auth lokal sudah jalan; sisa perjalanan = database production, sharing, deploy, dan polish error/loading.
+## 1. ARSITEKTUR & PETA FILE
+
+```
+[React/Vite :5173] ──proxy /api──> [FastAPI :8000] ──> [SQLite lokal / PostgreSQL prod]
+        │                              ├──> [Claude API — key di server]
+        │                              └──> [backend/data/uploads/ — file user]
+```
+
+### Backend (`backend/`)
+| File | Isi |
+|---|---|
+| `main.py` | FastAPI app, CORS, mount router + static `/uploads` |
+| `app/core/config.py` | Settings dari env (.env) |
+| `app/core/database.py` | Engine SQLAlchemy (sync). **Normalisasi URL**: strip `+aiosqlite`/`+asyncpg`, `postgres://`→`postgresql://`. DDL portable SQLite/PG: tabel `users`, `user_state`, `board_shares` (disiapkan buat Fase 3), `board` (legacy) |
+| `app/core/security.py` | **Zero-dependency auth**: PBKDF2 (stdlib) password hash + token HMAC-signed (mirip JWT). Secret: env `SECRET_KEY` atau auto-generate ke `backend/data/.secret`. Dependency `get_current_user` |
+| `app/routes/auth.py` | `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` |
+| `app/routes/state.py` | **KV per-user**: `GET/PUT /api/state/{key}`, key ∈ {boards, attendance, team, activity, chat}. Data = JSON blob per key. Max 4MB |
+| `app/routes/upload.py` | `POST /api/upload` (multipart, max 15MB, ekstensi whitelist) → simpan `backend/data/uploads/`, return `{url:"/uploads/xxx"}` |
+| `app/routes/chat.py` | `POST /api/chat/stream` (SSE streaming Claude + agentic tool loop), `GET /api/chat/models`. ⚠️ masih ada path Groq legacy (mati, ~300 baris, boleh dihapus) |
+| `app/services/chat_service.py` | System prompt (bahasa gaul ID), **14 CLAUDE_TOOLS** (add/update/move/delete card, kolom CRUD, open_card, get_board_status, save_memory, navigate_page, clock_in/out, add_team_member), executor → return action dict ke frontend. Memory per-user di `backend/data/memory/{user}.md` |
+| `Dockerfile` | Siap deploy (Coolify/Railway) |
+
+### Frontend (`frontend/src/`)
+| File | Isi |
+|---|---|
+| `main.jsx` | Root + **ErrorBoundary** (crash → tampil error + tombol reload, bukan layar putih) |
+| `App.jsx` | `App` = auth gate (checking → splash; !user → AuthPage; user → `Workspace key={user.id}`). `Workspace` = seluruh app: sidebar 7 page + theme toggle + avatar logout, topbar, routing page via state, DnD board, chat panel, CardModal, AI tool handler (`handleToolCall`), AI reminder deadline saat chat dibuka, deep-link `#card=ID` |
+| `lib/api.js` | `apiUrl`, `getToken/setToken` (localStorage `ys-token`), `apiFetch` (Bearer + throw on !ok), `uploadFile` (multipart) |
+| `lib/due.js` | Status deadline: `done/late/today/soon/scheduled/none` → warna `green/red/yellow/blue/cream`. Parse legacy "15 Apr" + `dueAt` ISO. `fmtDueRange`, `stripHtml` |
+| `lib/dominantColor.js` | Warna dominan gambar via canvas (cached) — dipakai cover card & banner modal |
+| `hooks/useAuth.js` | login/register/logout + `GET /me` validasi token saat load |
+| `hooks/useServerState.js` | **Jantung persistence**: load `GET /api/state/{key}` → kalau server null & ada localStorage lama (legacyKey) → **auto-migrate** push ke server. Save debounced 800ms `PUT`. ⚠️ Lihat Gotcha #2 |
+| `hooks/useBoard.js` | `useMultiBoard` di atas useServerState('boards'). **Normalisasi data server** (board tanpa columns/cards nggak boleh crash). API: boards, activeId, addTab/switchTab/deleteTab, addCard/updateCard/deleteCard/moveCard/duplicateCard, addColumn/renameColumn/deleteColumn, addComment/deleteComment, getBoardSummary |
+| `hooks/useAttendance.js` | clock in/out, records, monthMs, daysPresent, streak (server state 'attendance') |
+| `hooks/useTeam.js` | members CRUD + `fmtIDR` (server state 'team') |
+| `hooks/useActivity.js` | log feed, max 300 (server state 'activity') |
+| `hooks/useChat.js` | SSE streaming ke `/api/chat/stream`, tool events → `onToolCall`, `addLocalAssistant` (buat reminder), history di localStorage `ys-chat-v1` |
+| `hooks/useTheme.js` | `light/system/dark` → `<html data-theme>`, persist `ys-theme` |
+| `pages/AuthPage.jsx` | Login/Daftar, tab switch, serif title + starburst |
+| `pages/HomePage.jsx` | Greeting dinamis + jam live, stat NumberFlow, **heatmap GitHub-style** (aktivitas+absen, today centered), bar chart 7 hari, breakdown kolom, deadline, quick actions, activity feed |
+| `pages/SearchPage.jsx` | Kloning Claude.ai (centered, serif). Ketik = cari lintas board (highlight), **Enter = tanya AI** (`onAskAI`) |
+| `pages/ClockPage.jsx` | Timer live + jam analog SVG + **confetti saat clock in** + riwayat |
+| `pages/CalendarPage.jsx` | Grid bulan, due date semua board, klik tanggal → task |
+| `pages/TeamPage.jsx` / `PayrollPage.jsx` | Tim CRUD; gaji prorata dari absen (22 hari) + bonus streak 5%, slip gaji modal |
+| `components/CardModal.jsx` | Pop-up card ala Trello: cover banner (warna dominan, klik → lightbox), rich description contentEditable (paste dari Docs format kebawa) + collapse Show more, DatePicker horizontal (start+due+jam), checklist + progress, multi-attachment (upload via API, fallback base64), lightbox fullscreen, panel resizable (drag divider, persist `ys-modal-split`), copy link `#card=ID`, comments + edit |
+| `components/KanbanCard.jsx` | Cover **fit + bg warna dominan**, label strip warna, chip status deadline, chip checklist "2/5" |
+| `components/NumberFlow-standalone.jsx` | Rolling digits (odometer) — dipakai semua stat |
+| `components/ErrorBoundary.jsx` | Error screen ramah |
+| `App.css` | ~3.500 baris. Tema: cream `#FAF9F5` / ink / oranye Claude `#C96442`. Blok dark theme `html[data-theme="dark"]` di bagian bawah. ⚠️ ada duplikasi selector (override cascade sengaja) — konsolidasi masuk Fase 4 |
+| `index.css` | Design tokens (`:root` + dark) , font Inter + `--font-serif` |
+
+### Model data card (penting!)
+```js
+card = { id, title, description /* HTML string */, due /* legacy "15 Apr" */, dueAt /* ISO */, startAt,
+         posted /* done */, color /* label */, checklist: [{id,text,done}],
+         images: [{id,name,url,uploadedAt}], coverId, files: [{id,name,url,size,type}], comments: [...] }
+```
+`due` (string pendek) **selalu di-sync** saat set `dueAt` — kalender & home masih parse string itu.
+
+---
+
+## 2. YANG SUDAH JADI (semua terverifikasi)
+
+- ✅ **7 halaman**: Home (dashboard+heatmap+chart), Search (=AI chat), Board kanban multi-board, Absensi, Kalender, Tim, Payroll
+- ✅ **Auth penuh**: daftar → login → token 30 hari → logout. Data per-akun
+- ✅ **Semua data di server** (SQLite lokal / PG prod) — boards, absen, tim, activity. Auto-migrate dari localStorage lama
+- ✅ **AI assistant**: streaming, 14 tools (termasuk navigasi page, clock in/out, tambah anggota), context app + memory per-user, reminder deadline
+- ✅ **CardModal lengkap** (lihat tabel di atas), warna deadline 🔴telat 🟡≤3hari 🔵jauh 🍦kosong 🟢selesai
+- ✅ **3 tema** Light/System/Night (dark ala Claude) — toggle di sidebar bawah
+- ✅ Upload file ke server (bukan base64), NumberFlow, ErrorBoundary, animasi (stagger, confetti, blob, heatmap)
+- ✅ E2E lolos: daftar → login → clock in → reload → data tetap ada
+
+## 3. BUG YANG SUDAH DIPERBAIKI (jangan diulang)
+
+1. **Crash putih pasca-login**: board dari server tanpa `columns` → `undefined.map`. Fix: normalisasi di `useBoard` (`columns: Array.isArray(...) ? ... : []`)
+2. **Mutasi pertama nggak ke-save**: flag skip-save di `useServerState` memakan perubahan user pertama saat server kosong. Fix: `fromServerRef` hanya di-set saat setState berasal dari server
+3. Model Claude ID salah (`claude-haiku-4-5` → harus `claude-haiku-4-5-20251001`)
+4. `board.py` legacy pakai `session.cursor()` (invalid) — route nggak dipakai lagi, diganti `/api/state`
+
+## 4. GOTCHA (hal aneh yang sudah diketahui)
+
+1. **venv punya 2 interpreter** (python3.11 & 3.14). `pip` default install ke 3.14, server jalan di 3.11 → ModuleNotFoundError. **Selalu**: `venv/bin/python -m pip install ...`
+2. **StrictMode** double-mount → GET state dobel saat dev (harmless)
+3. Hooks-order warning di console = artefak HMR, hilang setelah reload
+4. Port 5173 & 8000 sering "in use" dari sesi lama → `lsof -ti:5173 | xargs kill`
+5. ⚠️ **API key Anthropic sempat terekspos** (pernah tampil di chat/screenshot) → **ROTATE di console.anthropic.com sebelum live** (di git history aman, `.env` tidak pernah ter-commit)
+6. CSS pakai pola append-override — kalau edit style, cari **occurrence TERAKHIR** selector di App.css
+
+## 5. ROADMAP SISA (kerjakan berurutan)
+
+### Fase 2 — GO LIVE (berikutnya, ~cepat)
+- [ ] 2.1 Rotate API key Anthropic (manual)
+- [ ] 2.2 Deploy backend: Dockerfile sudah ada → Railway/Coolify/Render + PostgreSQL (Supabase/Neon). Set env: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `SECRET_KEY`, `FRONTEND_ORIGINS=https://domain-frontend`
+- [ ] 2.3 Deploy frontend: Vercel, env `VITE_API_BASE_URL=https://api-domain` (tanpa proxy, apiUrl sudah support)
+- [ ] 2.4 Smoke test produksi: daftar→login→CRUD→reload→AI chat
+- [ ] ⚠️ Upload file di filesystem container = hilang saat redeploy → pakai volume persistent atau pindah S3/Supabase Storage
+
+### Fase 3 — Kolaborasi (fitur share yang diminta owner)
+- [ ] 3.1 Share board via invite link — tabel `board_shares` SUDAH ADA di DB (owner_id, board_id, invited_email, token, role viewer/editor). Butuh: endpoint create/accept invite + UI tombol Share di topbar board
+- [ ] 3.2 Karena data boards = blob per-user, share butuh refactor: pindahkan boards ke tabel sendiri (`boards: id, owner_id, label, columns_json`) supaya bisa diakses lintas user. `user_state['boards']` tinggal simpan urutan/activeId
+- [ ] 3.3 Realtime: WebSocket room per board (FastAPI `websockets` native) — broadcast patch saat PUT
+- [ ] 3.4 Presence + nama user beneran di komentar (CardModal sudah terima prop `user`)
+
+### Fase 4 — Polish
+- [ ] Mobile responsive (sidebar drawer, board scroll-snap)
+- [ ] Empty/loading/error states + toast notification ("tersimpan ✓")
+- [ ] Ganti `confirm()` browser → modal custom
+- [ ] Onboarding user baru, keyboard shortcuts (n, /, cmd+k), undo delete
+- [ ] Cleanup: hapus Groq legacy di backend, konsolidasi App.css, pecah App.jsx/CardModal.jsx, hapus `PAGE_TITLES.activity`
+- [ ] Notifikasi deadline, export CSV/JSON, template board, bulk action
+
+## 6. KONVENSI
+
+- **Bahasa UI & komentar**: Indonesia gaul (gue/lo) — konsisten, jangan campur formal
+- **Tema**: cream `#FAF9F5`, ink `#1C1B18`, oranye Claude `#C96442`/`#D97757`, serif buat greeting (`--font-serif`), radius besar (10–22px), shadow lembut
+- **Commit**: deskriptif bahasa Inggris, repo `github.com/artnesh06/yourspace` branch `main`
+- **Jangan pakai dependency baru** kalau stdlib/yang ada cukup (auth sengaja zero-dep)
+- Owner produk: **Anesh** (`artnesh06@gmail.com`) — suka kejutan visual, animasi, dan progress report persentase di tiap update
+
+> Progress: ██████████████░░░░░░ **~72%** — sisa: deploy (Fase 2), share+realtime (Fase 3), polish (Fase 4).

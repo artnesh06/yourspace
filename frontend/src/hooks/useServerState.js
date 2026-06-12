@@ -17,7 +17,8 @@ export function useServerState(key, defaultValue, legacyKey = null) {
   const [error, setError] = useState(null)
   const loadedRef = useRef(false)
   const timerRef = useRef(null)
-  const skipSaveRef = useRef(true)
+  // skip save HANYA untuk state yang barusan dateng dari server (bukan mutasi user)
+  const fromServerRef = useRef(false)
 
   // ── initial load ──
   useEffect(() => {
@@ -26,22 +27,21 @@ export function useServerState(key, defaultValue, legacyKey = null) {
       .then(res => {
         if (!alive) return
         if (res.data !== null && res.data !== undefined) {
-          skipSaveRef.current = true
+          fromServerRef.current = true
           setState(res.data)
         } else if (legacyKey) {
-          // migrasi dari localStorage lama (sekali jalan)
+          // migrasi dari localStorage lama (sekali jalan) — langsung push ke server
           try {
             const raw = localStorage.getItem(legacyKey)
             if (raw) {
-              const parsed = JSON.parse(raw)
-              skipSaveRef.current = false // langsung push ke server
-              setState(parsed)
+              loadedRef.current = true
+              setState(JSON.parse(raw))
             }
           } catch { /* data korup, pakai default */ }
         }
         loadedRef.current = true
       })
-      .catch(err => { if (alive) setError(err.message) ; loadedRef.current = true })
+      .catch(err => { if (alive) setError(err.message); loadedRef.current = true })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,7 +50,7 @@ export function useServerState(key, defaultValue, legacyKey = null) {
   // ── debounced save ──
   useEffect(() => {
     if (!loadedRef.current) return
-    if (skipSaveRef.current) { skipSaveRef.current = false; return }
+    if (fromServerRef.current) { fromServerRef.current = false; return }
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
       apiFetch(`/api/state/${key}`, {
