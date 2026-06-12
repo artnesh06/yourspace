@@ -5,7 +5,7 @@
 > Target akhir: **live di internet** — orang bisa daftar, login, pakai semua fitur, dan share board untuk kolaborasi.
 > Untuk AI lain: dokumen ini adalah satu-satunya handoff utama. Ikuti AI operating brief di bawah sebelum edit apa pun.
 
-Terakhir update: **12 Juni 2026** · Progress: **~95% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan · latest GitHub commit ✅ `faf7969` · login production ⏳ sekarang mentok CORS backend, perlu backend redeploy/fix CORS
+Terakhir update: **12 Juni 2026, 16:23 WIB** · Progress: **~98% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan · backend deploy commit `832bbfa` ✅ healthy · production register/login ✅ berhasil · dashboard production ✅ kebuka
 
 ---
 
@@ -16,12 +16,17 @@ Status terakhir:
 - Backend production sehat: `https://api.artnesh.cloud/health` return healthy.
 - Frontend production terbuka: `https://yourspace.artnesh.cloud`.
 - Deploy Coolify frontend berhasil dan container running.
-- Error terakhir sebelum fix: login/register frontend masih nembak `/api/auth/login` atau `/api/auth/register` ke domain frontend, hasilnya `HTTP 404`.
+- Production auth sudah berhasil: user bisa daftar/login dari `https://yourspace.artnesh.cloud` dan masuk dashboard sebagai `artnesh`.
+- Smoke test terakhir berhasil pada **12 Juni 2026, 16:23 WIB**: halaman Home/dashboard tampil, data task muncul, dan app sudah melewati blocker 404 + CORS.
+- Error awal sebelum fix: login/register frontend masih nembak `/api/auth/login` atau `/api/auth/register` ke domain frontend, hasilnya `HTTP 404`.
 - Root cause: `VITE_API_BASE_URL` tidak kebaca/ter-embed di build frontend, sehingga API base kosong.
 - Fix sudah dipush ke GitHub commit `a0b10be`: `fix: route production auth to API domain`.
 - Fix final sudah dipush ke GitHub commit `faf7969`: `fix: force production API base URL`.
-- Setelah commit `faf7969`, frontend sudah hampir benar: request sekarang menuju `https://api.artnesh.cloud/api/auth/register`.
-- Error terbaru: browser blok request karena CORS backend tidak mengirim `Access-Control-Allow-Origin` untuk origin `https://yourspace.artnesh.cloud`.
+- Setelah commit `faf7969`, frontend benar: request menuju `https://api.artnesh.cloud/api/auth/register`.
+- Error setelah itu: browser blok request karena CORS backend tidak mengirim `Access-Control-Allow-Origin` untuk origin `https://yourspace.artnesh.cloud`.
+- Fix CORS backend sudah dipush ke GitHub commit `832bbfa`: `fix: allow production frontend CORS`.
+- Backend Coolify deploy commit `832bbfa` sudah selesai: image built, new container started, healthcheck healthy, rolling update completed.
+- Setelah backend redeploy commit `832bbfa`, CORS resolved dan register/login production berhasil.
 
 Perubahan di commit `a0b10be`:
 
@@ -39,40 +44,41 @@ Perubahan CORS backend setelah error terbaru:
 
 - `backend/main.py`: tambah `allow_origin_regex` untuk semua subdomain `https://*.artnesh.cloud`.
 - `backend/main.py`: tambah default origin `https://yourspace-tawny.vercel.app` untuk fallback Vercel lama.
-- Setelah perubahan ini dipush, **backend app juga wajib redeploy**, bukan frontend saja.
+- Perubahan ini sudah masuk commit `832bbfa` dan backend sudah redeploy sampai healthy.
 
-Langkah setelah CORS fix:
+Hasil setelah CORS fix:
 
-- [ ] Commit + push perubahan `backend/main.py` dan `yourspace.md`.
-- [ ] Klik **Redeploy** backend API di Coolify/deploy.artnesh.cloud.
-- [ ] Klik **Redeploy** frontend `yourspace:frontend` kalau ingin memastikan dua-duanya pakai commit terbaru.
-- [ ] Hard refresh browser: `Cmd + Shift + R`.
-- [ ] Test login di `https://yourspace.artnesh.cloud`.
-- [ ] Di DevTools Network, pastikan request login ke `https://api.artnesh.cloud/api/auth/login`.
-- [ ] Pastikan request salah `/api/auth/login` di domain frontend sudah hilang.
-- [ ] Jika login berhasil, update progress menjadi sekitar 96-98% dan catat smoke test berhasil di dokumen ini.
+- [x] Commit + push perubahan `backend/main.py` dan `yourspace.md` ke `832bbfa`.
+- [x] Klik **Redeploy** backend API di Coolify/deploy.artnesh.cloud dan pastikan deploy log memakai commit `832bbfa`.
+- [x] Backend healthcheck production healthy setelah redeploy.
+- [x] Hard refresh browser frontend: `Cmd + Shift + R`.
+- [x] Test register/login di `https://yourspace.artnesh.cloud`.
+- [x] Frontend request auth ke `https://api.artnesh.cloud/api/auth/*`.
+- [x] CORS error hilang setelah backend redeploy.
+- [x] Dashboard production kebuka dan user masuk app.
 
-Kalau masih error setelah redeploy:
+Kalau error muncul lagi di masa depan:
 
 - `HTTP 404` ke `/api/auth/login` atau `/api/auth/register`: frontend belum redeploy commit `faf7969`, deploy log masih pakai commit lama, atau browser cache masih pakai asset lama.
-- `CORS error`: backend belum redeploy CORS terbaru, deploy log backend masih pakai commit lama, atau env `FRONTEND_ORIGINS`/CORS belum include `https://yourspace.artnesh.cloud`.
+- `CORS error` / `Failed to fetch`: backend belum redeploy commit `832bbfa`, deploy log backend masih pakai commit lama, atau env `FRONTEND_ORIGINS`/CORS belum include `https://yourspace.artnesh.cloud`.
 - `401/Invalid credentials`: API sudah benar, tinggal akun/password.
 - `500`: cek log backend Coolify.
 
 Checklist live yang sudah jelas:
 
-- [x] GitHub branch `main` update sampai commit `faf7969`.
+- [x] GitHub branch `main` update sampai commit `832bbfa`.
 - [x] Backend healthcheck production sehat.
 - [x] Frontend production terbuka.
 - [x] Fix final API base production sudah dipush.
 - [x] Frontend sudah request ke API domain yang benar.
-- [ ] Push CORS backend regex fix.
-- [ ] Redeploy backend supaya CORS terbaru aktif.
-- [ ] Redeploy frontend jika masih pakai asset lama.
-- [ ] Smoke test login/register production.
+- [x] Push CORS backend regex fix.
+- [x] Redeploy backend supaya CORS terbaru aktif dan pastikan commit `832bbfa` di deploy log.
+- [x] Redeploy frontend jika masih pakai asset lama.
+- [x] Smoke test login/register production.
+- [x] Dashboard production berhasil kebuka setelah login.
 - [ ] Smoke test CRUD card + reload.
 - [ ] Smoke test AI chat.
-- [ ] Catat hasil final di dokumen ini untuk AI berikutnya.
+- [x] Catat hasil final auth production di dokumen ini untuk AI berikutnya.
 
 ---
 
