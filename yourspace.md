@@ -5,7 +5,57 @@
 > Target akhir: **live di internet** — orang bisa daftar, login, pakai semua fitur, dan share board untuk kolaborasi.
 > Untuk AI lain: dokumen ini adalah satu-satunya handoff utama. Ikuti AI operating brief di bawah sebelum edit apa pun.
 
-Terakhir update: **12 Juni 2026** · Progress: **~73%** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E
+Terakhir update: **12 Juni 2026** · Progress: **~94% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan, login production ⏳ menunggu smoke test setelah redeploy commit `a0b10be`
+
+---
+
+## LATEST PRODUCTION STATUS — 12 JUNI 2026
+
+Status terakhir:
+
+- Backend production sehat: `https://api.artnesh.cloud/health` return healthy.
+- Frontend production terbuka: `https://yourspace.artnesh.cloud`.
+- Deploy Coolify frontend berhasil dan container running.
+- Error terakhir sebelum fix: login frontend masih nembak `/api/auth/login` ke domain frontend, hasilnya `HTTP 404`.
+- Root cause: `VITE_API_BASE_URL` tidak kebaca/ter-embed di build frontend, sehingga API base kosong.
+- Fix sudah dipush ke GitHub commit `a0b10be`: `fix: route production auth to API domain`.
+
+Perubahan di commit `a0b10be`:
+
+- `frontend/src/lib/api.js`: tambah fallback production. Kalau hostname app adalah `artnesh.cloud` atau subdomain `*.artnesh.cloud` selain `api`/`deploy`, API otomatis diarahkan ke `https://api.artnesh.cloud`.
+- `backend/main.py`: default CORS ditambah `https://yourspace.artnesh.cloud`, `https://www.yourspace.artnesh.cloud`, dan `https://artnesh.cloud`.
+- `yourspace.md` dan `README.md`: handoff docs disatukan dan diperjelas.
+
+Langkah setelah commit `a0b10be`:
+
+- [ ] Klik **Redeploy** frontend `yourspace:frontend` di Coolify/deploy.artnesh.cloud.
+- [ ] Kalau backend app terpisah, redeploy backend juga supaya CORS terbaru ikut aktif.
+- [ ] Hard refresh browser: `Cmd + Shift + R`.
+- [ ] Test login di `https://yourspace.artnesh.cloud`.
+- [ ] Di DevTools Network, pastikan request login ke `https://api.artnesh.cloud/api/auth/login`.
+- [ ] Pastikan request salah `/api/auth/login` di domain frontend sudah hilang.
+- [ ] Jika login berhasil, update progress menjadi sekitar 96-98% dan catat smoke test berhasil di dokumen ini.
+
+Kalau masih error setelah redeploy:
+
+- `HTTP 404` ke `/api/auth/login`: frontend belum redeploy commit `a0b10be` atau browser cache masih pakai asset lama.
+- `HTTP 404` masih ke `/api/auth/register` setelah commit `a0b10be`: production bundle masih memakai API base kosong. Next fix: paksa production build Vite fallback ke `https://api.artnesh.cloud`, bukan cuma runtime hostname fallback.
+- `CORS error`: backend belum redeploy CORS terbaru atau env `FRONTEND_ORIGINS` belum include `https://yourspace.artnesh.cloud`.
+- `401/Invalid credentials`: API sudah benar, tinggal akun/password.
+- `500`: cek log backend Coolify.
+
+Checklist live yang sudah jelas:
+
+- [x] GitHub branch `main` update sampai commit `a0b10be`.
+- [x] Backend healthcheck production sehat.
+- [x] Frontend production terbuka.
+- [x] Fix API base production sudah dipush.
+- [ ] Redeploy frontend setelah commit `a0b10be`.
+- [ ] Redeploy backend jika CORS masih pakai image lama.
+- [ ] Smoke test login/register production.
+- [ ] Smoke test CRUD card + reload.
+- [ ] Smoke test AI chat.
+- [ ] Catat hasil final di dokumen ini untuk AI berikutnya.
 
 ---
 

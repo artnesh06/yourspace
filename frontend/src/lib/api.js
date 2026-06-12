@@ -13,7 +13,9 @@ function getFallbackApiBase() {
   return isArtneshApp ? PRODUCTION_API_BASE_URL : ''
 }
 
-const rawApiBase = import.meta.env.VITE_API_BASE_URL || getFallbackApiBase()
+const rawApiBase =
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.PROD ? PRODUCTION_API_BASE_URL : getFallbackApiBase())
 
 export const API_BASE_URL = rawApiBase.replace(/\/$/, '')
 
