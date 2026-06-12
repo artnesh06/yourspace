@@ -8,6 +8,9 @@ from app.core.database import init_db
 from app.routes import chat, board, auth, state, upload
 
 DEFAULT_CORS_ORIGINS = [
+    "https://yourspace.artnesh.cloud",
+    "https://www.yourspace.artnesh.cloud",
+    "https://artnesh.cloud",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",

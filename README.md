@@ -40,7 +40,7 @@ Supaya file nggak nyampur:
 
 ## Dokumen
 
-- `yourspace.md` berisi product doc, status fitur, dan roadmap.
+- `yourspace.md` berisi AI handoff, product doc, status fitur, dan roadmap.
 - `DEPLOYMENT.md` berisi panduan deployment teknis.
 - `../deploy.artnesh/docs/production-roadmap.md` berisi roadmap infra/production `artnesh.cloud`.
 

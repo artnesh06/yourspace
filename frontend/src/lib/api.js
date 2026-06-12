@@ -1,4 +1,19 @@
-const rawApiBase = import.meta.env.VITE_API_BASE_URL || ''
+const PRODUCTION_API_BASE_URL = 'https://api.artnesh.cloud'
+
+function getFallbackApiBase() {
+  if (typeof window === 'undefined') return ''
+
+  const host = window.location.hostname
+  const isArtneshApp =
+    host === 'artnesh.cloud' ||
+    (host.endsWith('.artnesh.cloud') &&
+      host !== 'api.artnesh.cloud' &&
+      host !== 'deploy.artnesh.cloud')
+
+  return isArtneshApp ? PRODUCTION_API_BASE_URL : ''
+}
+
+const rawApiBase = import.meta.env.VITE_API_BASE_URL || getFallbackApiBase()
 
 export const API_BASE_URL = rawApiBase.replace(/\/$/, '')
 
