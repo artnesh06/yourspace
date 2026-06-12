@@ -11,6 +11,7 @@ DEFAULT_CORS_ORIGINS = [
     "https://yourspace.artnesh.cloud",
     "https://www.yourspace.artnesh.cloud",
     "https://artnesh.cloud",
+    "https://yourspace-tawny.vercel.app",
     "http://localhost:5173",
     "http://localhost:5174",
     "http://localhost:5175",
@@ -28,6 +29,8 @@ def get_cors_origins():
     ]
     return DEFAULT_CORS_ORIGINS + configured
 
+CORS_ORIGIN_REGEX = r"^https://([a-z0-9-]+\.)?artnesh\.cloud$"
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: create DB tables
@@ -37,10 +40,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Your Space API", version="1.0.0", lifespan=lifespan)
 
-# CORS middleware — allow localhost dev origins
+# CORS middleware — allow local dev + production artnesh.cloud origins
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_cors_origins(),
+    allow_origin_regex=CORS_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

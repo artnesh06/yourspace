@@ -5,7 +5,7 @@
 > Target akhir: **live di internet** — orang bisa daftar, login, pakai semua fitur, dan share board untuk kolaborasi.
 > Untuk AI lain: dokumen ini adalah satu-satunya handoff utama. Ikuti AI operating brief di bawah sebelum edit apa pun.
 
-Terakhir update: **12 Juni 2026** · Progress: **~94% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan, login production ⏳ menunggu smoke test setelah redeploy commit `a0b10be`
+Terakhir update: **12 Juni 2026** · Progress: **~95% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan · latest GitHub commit ✅ `faf7969` · login production ⏳ sekarang mentok CORS backend, perlu backend redeploy/fix CORS
 
 ---
 
@@ -16,9 +16,12 @@ Status terakhir:
 - Backend production sehat: `https://api.artnesh.cloud/health` return healthy.
 - Frontend production terbuka: `https://yourspace.artnesh.cloud`.
 - Deploy Coolify frontend berhasil dan container running.
-- Error terakhir sebelum fix: login frontend masih nembak `/api/auth/login` ke domain frontend, hasilnya `HTTP 404`.
+- Error terakhir sebelum fix: login/register frontend masih nembak `/api/auth/login` atau `/api/auth/register` ke domain frontend, hasilnya `HTTP 404`.
 - Root cause: `VITE_API_BASE_URL` tidak kebaca/ter-embed di build frontend, sehingga API base kosong.
 - Fix sudah dipush ke GitHub commit `a0b10be`: `fix: route production auth to API domain`.
+- Fix final sudah dipush ke GitHub commit `faf7969`: `fix: force production API base URL`.
+- Setelah commit `faf7969`, frontend sudah hampir benar: request sekarang menuju `https://api.artnesh.cloud/api/auth/register`.
+- Error terbaru: browser blok request karena CORS backend tidak mengirim `Access-Control-Allow-Origin` untuk origin `https://yourspace.artnesh.cloud`.
 
 Perubahan di commit `a0b10be`:
 
@@ -26,10 +29,23 @@ Perubahan di commit `a0b10be`:
 - `backend/main.py`: default CORS ditambah `https://yourspace.artnesh.cloud`, `https://www.yourspace.artnesh.cloud`, dan `https://artnesh.cloud`.
 - `yourspace.md` dan `README.md`: handoff docs disatukan dan diperjelas.
 
-Langkah setelah commit `a0b10be`:
+Perubahan di commit `faf7969`:
 
-- [ ] Klik **Redeploy** frontend `yourspace:frontend` di Coolify/deploy.artnesh.cloud.
-- [ ] Kalau backend app terpisah, redeploy backend juga supaya CORS terbaru ikut aktif.
+- `frontend/src/lib/api.js`: production build Vite sekarang selalu fallback ke `https://api.artnesh.cloud` kalau `VITE_API_BASE_URL` kosong.
+- Ini memperbaiki kasus setelah `a0b10be` masih request ke `/api/auth/register`.
+- Local Git dan GitHub sudah sama-sama menunjuk `faf7969 (main, origin/main)`.
+
+Perubahan CORS backend setelah error terbaru:
+
+- `backend/main.py`: tambah `allow_origin_regex` untuk semua subdomain `https://*.artnesh.cloud`.
+- `backend/main.py`: tambah default origin `https://yourspace-tawny.vercel.app` untuk fallback Vercel lama.
+- Setelah perubahan ini dipush, **backend app juga wajib redeploy**, bukan frontend saja.
+
+Langkah setelah CORS fix:
+
+- [ ] Commit + push perubahan `backend/main.py` dan `yourspace.md`.
+- [ ] Klik **Redeploy** backend API di Coolify/deploy.artnesh.cloud.
+- [ ] Klik **Redeploy** frontend `yourspace:frontend` kalau ingin memastikan dua-duanya pakai commit terbaru.
 - [ ] Hard refresh browser: `Cmd + Shift + R`.
 - [ ] Test login di `https://yourspace.artnesh.cloud`.
 - [ ] Di DevTools Network, pastikan request login ke `https://api.artnesh.cloud/api/auth/login`.
@@ -38,20 +54,21 @@ Langkah setelah commit `a0b10be`:
 
 Kalau masih error setelah redeploy:
 
-- `HTTP 404` ke `/api/auth/login`: frontend belum redeploy commit `a0b10be` atau browser cache masih pakai asset lama.
-- `HTTP 404` masih ke `/api/auth/register` setelah commit `a0b10be`: production bundle masih memakai API base kosong. Next fix: paksa production build Vite fallback ke `https://api.artnesh.cloud`, bukan cuma runtime hostname fallback.
-- `CORS error`: backend belum redeploy CORS terbaru atau env `FRONTEND_ORIGINS` belum include `https://yourspace.artnesh.cloud`.
+- `HTTP 404` ke `/api/auth/login` atau `/api/auth/register`: frontend belum redeploy commit `faf7969`, deploy log masih pakai commit lama, atau browser cache masih pakai asset lama.
+- `CORS error`: backend belum redeploy CORS terbaru, deploy log backend masih pakai commit lama, atau env `FRONTEND_ORIGINS`/CORS belum include `https://yourspace.artnesh.cloud`.
 - `401/Invalid credentials`: API sudah benar, tinggal akun/password.
 - `500`: cek log backend Coolify.
 
 Checklist live yang sudah jelas:
 
-- [x] GitHub branch `main` update sampai commit `a0b10be`.
+- [x] GitHub branch `main` update sampai commit `faf7969`.
 - [x] Backend healthcheck production sehat.
 - [x] Frontend production terbuka.
-- [x] Fix API base production sudah dipush.
-- [ ] Redeploy frontend setelah commit `a0b10be`.
-- [ ] Redeploy backend jika CORS masih pakai image lama.
+- [x] Fix final API base production sudah dipush.
+- [x] Frontend sudah request ke API domain yang benar.
+- [ ] Push CORS backend regex fix.
+- [ ] Redeploy backend supaya CORS terbaru aktif.
+- [ ] Redeploy frontend jika masih pakai asset lama.
 - [ ] Smoke test login/register production.
 - [ ] Smoke test CRUD card + reload.
 - [ ] Smoke test AI chat.
