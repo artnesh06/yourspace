@@ -2823,6 +2823,13 @@ tr:hover .row-delete, .team-card:hover .row-delete { opacity: 1; }
   flex-direction: column;
   gap: 0;
   margin-top: 4px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.activity-feed::-webkit-scrollbar { width: 6px; }
+.activity-feed::-webkit-scrollbar-thumb {
+  background: var(--claude-line); border-radius: 3px;
 }
 .activity-item {
   display: flex;

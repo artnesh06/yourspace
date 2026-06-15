@@ -81,7 +81,7 @@ function StreamingText({ text }) {
   let li = 0
   while (li < lines.length) {
     const line = lines[li]
-    if (!line.trim()) { blocks.push(<div key={'br' + li} className="stream-break" />); li++; continue }
+    if (!line.trim()) { li++; continue }
     if (/^[-*+] /.test(line)) {
       const items = []
       while (li < lines.length && /^[-*+] /.test(lines[li])) {
@@ -179,9 +179,8 @@ function renderMarkdown(text) {
   while (i < lines.length) {
     const line = lines[i]
 
-    // Empty line
+    // Empty line — skip; .md-content flex gap handles block spacing
     if (!line.trim()) {
-      elements.push(<br key={i} />)
       i++
       continue
     }
