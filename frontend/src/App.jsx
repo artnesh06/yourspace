@@ -335,8 +335,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
   }
 
   const PAGE_TITLES = {
-    home: 'Home', search: 'Search', board: 'Board', absen: 'Absensi',
-    calendar: 'Kalender', team: 'Tim', payroll: 'Payroll', activity: 'Aktivitas',
+    home: 'Home', search: 'Search', board: 'Board', absen: 'Absensi', activity: 'Aktivitas',
   }
 
   return (
