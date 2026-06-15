@@ -4628,8 +4628,36 @@ html[data-theme="dark"] .auth-company-logo {
 
 /* ── Layout splits ── */
 .home2-split { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
-.home2-grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
 .span-2 { min-width: 0; }
+
+/* Bottom section: Distribusi · Deadline · AI on one row, Aktivitas full-width below.
+   Narrow → AI sits beside Aktivitas. Very narrow → all stacked. */
+.home2-bottom {
+  display: grid; gap: 12px;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+    "dist deadline ai"
+    "activity activity activity";
+}
+.home2-bottom > .area-dist     { grid-area: dist; min-width: 0; }
+.home2-bottom > .area-deadline { grid-area: deadline; min-width: 0; }
+.home2-bottom > .area-ai       { grid-area: ai; min-width: 0; }
+.home2-bottom > .area-activity { grid-area: activity; min-width: 0; }
+
+@media (max-width: 980px) {
+  .home2-bottom {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "dist deadline"
+      "ai activity";
+  }
+}
+@media (max-width: 640px) {
+  .home2-bottom {
+    grid-template-columns: 1fr;
+    grid-template-areas: "dist" "deadline" "ai" "activity";
+  }
+}
 
 /* ── Area chart ── */
 .chart-wrap { position: relative; width: 100%; }

@@ -251,9 +251,9 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
         {/* ── Heatmap ── */}
         <Heatmap counts={heatCounts} total={heatTotal} />
 
-        {/* ── Distribution + Deadline + AI ── */}
-        <div className="home2-grid3">
-          <section className="home-card anim-in" style={{ animationDelay: '300ms' }}>
+        {/* ── Distribution + Deadline + AI + Activity ── */}
+        <div className="home2-bottom">
+          <section className="home-card area-dist anim-in" style={{ animationDelay: '300ms' }}>
             <h3 className="card-title"><span className="title-dot" /> Distribusi board</h3>
             {donutSegments.length === 0
               ? <p className="card-empty">Belum ada task</p>
@@ -274,7 +274,7 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
             <button className="card-link" onClick={() => onNavigate('board')}>Buka board →</button>
           </section>
 
-          <section className="home-card anim-in" style={{ animationDelay: '360ms' }}>
+          <section className="home-card area-deadline anim-in" style={{ animationDelay: '360ms' }}>
             <h3 className="card-title"><span className="title-dot" /> Deadline terdekat</h3>
             {dueCards.length === 0
               ? <p className="card-empty">Nggak ada deadline aktif 🎉</p>
@@ -289,10 +289,10 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
                   ))}
                 </ul>
               )}
-            <button className="card-link" onClick={() => onNavigate('calendar')}>Lihat kalender →</button>
+            <button className="card-link" onClick={() => onNavigate('board')}>Buka board →</button>
           </section>
 
-          <section className="home-card ai-card anim-in" style={{ animationDelay: '420ms' }}>
+          <section className="home-card ai-card area-ai anim-in" style={{ animationDelay: '420ms' }}>
             <div className="ai-card-glow" />
             <div className="ai-card-inner">
               <div className="ai-badge">✦ AI Assistant</div>
@@ -308,10 +308,9 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
               <span className="ai-team-label">{team.members.length} anggota tim</span>
             </div>
           </section>
-        </div>
 
-        {/* ── Activity feed ── */}
-        <section className="home-card anim-in" style={{ animationDelay: '480ms' }}>
+          {/* ── Activity feed ── */}
+          <section className="home-card area-activity anim-in" style={{ animationDelay: '480ms' }}>
           <div className="card-head">
             <h3 className="card-title" style={{ marginBottom: 0 }}><span className="title-dot" /> Aktivitas terbaru</h3>
             {activity.entries.length > 0 && (
@@ -335,7 +334,8 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
               ))}
             </div>
           )}
-        </section>
+          </section>
+        </div>
 
       </div>
     </div>
