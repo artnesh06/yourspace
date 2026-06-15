@@ -5029,21 +5029,24 @@ html[data-theme="dark"] .auth-company-logo {
 .search-hero-heading {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
   margin: 0;
   font-family: 'Tiempos Text', Charter, Georgia, 'Times New Roman', serif;
   font-size: 38px;
   font-weight: 400;
   letter-spacing: -0.5px;
+  word-spacing: -0.18em;
   line-height: 1.1;
   color: var(--ink);
 }
 
 .search-hero-inline-logo {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
   flex-shrink: 0;
+  position: relative;
+  top: 1px;
 }
 
 /* ── Panel host (wraps ChatPanel for both states) ── */
@@ -5051,11 +5054,11 @@ html[data-theme="dark"] .auth-company-logo {
 .search-panel-host .chat-panel-inner { width: 100%; height: 100%; display: flex; flex-direction: column; }
 
 /* Empty: only the spacious input shows, centered */
-.search-panel-host.empty { flex: 0 0 auto; align-items: center; }
+.search-panel-host.empty { width: min(720px, 94vw); flex: 0 0 auto; }
 .search-panel-host.empty .chat-panel-inner { height: auto; }
 .search-panel-host.empty .chat-messages { display: none; }
 .search-panel-host.empty .chat-input-area {
-  width: min(720px, 94vw);
+  width: 100%;
   padding: 0;
   background: transparent;
   border: none;
@@ -5079,8 +5082,8 @@ html[data-theme="dark"] .auth-company-logo {
 
 /* Spacious Claude-style input box — both states */
 .search-panel-host .chat-input-box {
-  padding: 16px 16px 12px 20px;
-  border-radius: 26px;
+  padding: 11px 14px 9px 18px;
+  border-radius: 24px;
   border-color: var(--claude-line);
   box-shadow: 0 2px 16px rgba(20,20,19,.06);
 }
@@ -5089,8 +5092,8 @@ html[data-theme="dark"] .auth-company-logo {
 }
 .search-panel-host .chat-input {
   font-size: 16px;
-  padding: 4px 0 12px;
-  min-height: 26px;
+  padding: 2px 0 6px;
+  min-height: 22px;
 }
 
 /* Chips */
