@@ -1,151 +1,327 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { SlotText } from 'slot-text/react'
+import { chromatic } from 'slot-text'
+import 'slot-text/style.css'
+import { ChatPanel } from '../components/ChatPanel'
+import { apiUrl } from '../lib/api'
+import logo from '../assets/logo.png'
 
-function greeting(d = new Date()) {
+function greetingWord(d = new Date()) {
   const h = d.getHours()
-  if (h < 11) return 'Selamat pagi'
-  if (h < 15) return 'Selamat siang'
-  if (h < 18) return 'Selamat sore'
-  return 'Selamat malam'
+  if (h < 11) return 'pagi'
+  if (h < 15) return 'siang'
+  if (h < 18) return 'sore'
+  return 'malam'
 }
 
-function ClaudeStar({ size = 34 }) {
+function buildGreetings(name) {
+  return [
+    `Selamat ${greetingWord()}, ${name}`,
+    `Halo, ${name}`,
+    `Apa kabar, ${name}`,
+    `Mau ngerjain apa, ${name}`,
+    `Siap ngebut, ${name}`,
+    `Lagi sibuk apa, ${name}`,
+  ]
+}
+
+// light inner-letter shuffle so each char visibly rolls into place on mount
+function scramble(s) {
+  return s.replace(/\S+/g, w => {
+    if (w.length < 4) return w
+    const mid = w.slice(1, -1).split('')
+    for (let i = mid.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[mid[i], mid[j]] = [mid[j], mid[i]]
+    }
+    return w[0] + mid.join('') + w[w.length - 1]
+  })
+}
+
+function HeroGreeting({ name }) {
+  const target = useMemo(() => {
+    const pool = buildGreetings(name)
+    return pool[Math.floor(Math.random() * pool.length)]
+  }, [name])
+  const [txt, setTxt] = useState(() => scramble(target))
+  useEffect(() => {
+    const t = setTimeout(() => setTxt(target), 180)
+    return () => clearTimeout(t)
+  }, [target])
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" className="claude-star-spin">
-      {Array.from({ length: 11 }).map((_, i) => {
-        const a = ((i * 360) / 11 - 90) * Math.PI / 180
-        const len = i % 3 === 0 ? 9.6 : i % 3 === 1 ? 8.2 : 8.9
-        return (
-          <line key={i}
-            x1={12 + Math.cos(a) * 2.4} y1={12 + Math.sin(a) * 2.4}
-            x2={12 + Math.cos(a) * len} y2={12 + Math.sin(a) * len}
-            stroke="#D97757" strokeWidth="2.5" strokeLinecap="round" />
-        )
-      })}
-    </svg>
+    <h1 className="search-hero-heading">
+      <img src={logo} alt="" className="search-hero-inline-logo" />
+      <SlotText text={txt} options={{ direction: 'up', color: chromatic({ from: 20 }), skipUnchanged: false }} />
+    </h1>
   )
 }
 
-function highlight(text, q) {
-  if (!q) return text
-  const idx = text.toLowerCase().indexOf(q.toLowerCase())
-  if (idx === -1) return text
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="search-mark">{text.slice(idx, idx + q.length)}</mark>
-      {text.slice(idx + q.length)}
-    </>
-  )
+const STORAGE_KEY = 'ys-search-chats-v1'
+
+function genId() {
+  return 'sc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
+}
+
+function loadChats() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return { conversations: [] }
+    return JSON.parse(raw)
+  } catch { return { conversations: [] } }
 }
 
 const CHIPS = [
-  { icon: '🔍', label: 'Cari card', q: '' },
-  { icon: '📅', label: 'Deadline', q: 'Apr' },
-  { icon: '🎨', label: 'Konten', q: 'konten' },
-  { icon: '🤝', label: 'Kolaborasi', q: 'kolaborasi' },
+  { icon: '📋', label: 'Task di board' },
+  { icon: '⏰', label: 'Cek deadline' },
+  { icon: '👥', label: 'Info tim' },
+  { icon: '📊', label: 'Laporan absen' },
 ]
 
-export function SearchPage({ boards, userName = 'Anesh', onOpenCard, onAskAI }) {
-  const [q, setQ] = useState('')
-  const hasQuery = q.trim().length > 0
+export function SearchPage({ userName = 'Anesh', newChatKey = 0 }) {
+  const [conversations, setConversations] = useState(() => loadChats().conversations || [])
+  const [activeId, setActiveId] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [input, setInput] = useState('')
+  const abortRef = useRef(null)
+  const activeConvRef = useRef(null)
+  const firstName = userName.split(' ')[0]
 
-  function askAI() {
-    if (!q.trim()) return
-    onAskAI?.(q.trim())
-    setQ('')
-  }
+  useEffect(() => {
+    setActiveId(null)
+    setInput('')
+  }, [newChatKey])
 
-  const results = useMemo(() => {
-    const query = q.trim().toLowerCase()
-    if (!query) return []
-    const out = []
-    for (const b of boards) {
-      for (const col of b.columns) {
-        for (const card of col.cards) {
-          const inTitle = card.title.toLowerCase().includes(query)
-          const inDesc = (card.description || '').toLowerCase().includes(query)
-          if (inTitle || inDesc) out.push({ board: b, column: col, card })
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations }))
+    } catch {}
+  }, [conversations])
+
+  const activeConv = conversations.find(c => c.id === activeId) || null
+  activeConvRef.current = activeConv
+  const messages = activeConv?.messages || []
+  const hasMessages = messages.length > 0
+
+  async function handleSend(text) {
+    if (!text.trim() || loading) return
+
+    let convId = activeId
+    let existingHistory = []
+
+    if (!activeId) {
+      const newConv = {
+        id: genId(),
+        title: text.slice(0, 48),
+        createdAt: Date.now(),
+        messages: [],
+        history: [],
+      }
+      convId = newConv.id
+      setConversations(prev => [newConv, ...prev])
+      setActiveId(convId)
+    } else {
+      existingHistory = activeConvRef.current?.history || []
+    }
+
+    const userMsg = { id: 'm' + Date.now(), role: 'user', content: text, ts: Date.now() }
+    const assistantId = 'ma' + Date.now()
+    const placeholder = { id: assistantId, role: 'assistant', content: '', streaming: true, ts: Date.now() }
+
+    setConversations(prev => prev.map(c =>
+      c.id === convId ? { ...c, messages: [...c.messages, userMsg, placeholder] } : c
+    ))
+    setLoading(true)
+
+    try {
+      abortRef.current = new AbortController()
+      const history = [...existingHistory, { role: 'user', content: text }]
+
+      const res = await fetch(apiUrl('/api/chat/stream'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: abortRef.current.signal,
+        body: JSON.stringify({
+          message: text,
+          model: 'claude-haiku-4-5',
+          user_id: 'search',
+          chat_history: history.slice(-20),
+          board_data: {},
+        }),
+      })
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let fullText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop()
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+          try {
+            const event = JSON.parse(raw)
+            if (event.type === 'token') {
+              fullText += event.token
+              setConversations(prev => prev.map(c =>
+                c.id === convId
+                  ? { ...c, messages: c.messages.map(m => m.id === assistantId ? { ...m, content: fullText } : m) }
+                  : c
+              ))
+            } else if (event.type === 'done') {
+              const finalText = event.full_text || fullText
+              setConversations(prev => prev.map(c =>
+                c.id === convId ? {
+                  ...c,
+                  messages: c.messages.map(m =>
+                    m.id === assistantId ? { ...m, content: finalText, streaming: false } : m
+                  ),
+                  history: [...(c.history || []),
+                    { role: 'user', content: text },
+                    { role: 'assistant', content: finalText },
+                  ],
+                } : c
+              ))
+            } else if (event.type === 'error') {
+              setConversations(prev => prev.map(c =>
+                c.id === convId ? {
+                  ...c,
+                  messages: c.messages.map(m =>
+                    m.id === assistantId ? { ...m, content: `⚠️ ${event.error}`, streaming: false } : m
+                  ),
+                } : c
+              ))
+            }
+          } catch {}
         }
       }
+    } catch (err) {
+      if (err.name === 'AbortError') return
+      const isNetwork = err.message === 'Failed to fetch' || err.name === 'TypeError'
+      const msg = isNetwork
+        ? '⚠️ Gak bisa nyambung ke server AI. Pastiin backend lagi jalan.'
+        : `⚠️ Error: ${err.message}`
+      setConversations(prev => prev.map(c =>
+        c.id === convId ? {
+          ...c,
+          messages: c.messages.map(m =>
+            m.id === assistantId ? { ...m, content: msg, streaming: false } : m
+          ),
+        } : c
+      ))
+    } finally {
+      setLoading(false)
+      abortRef.current = null
     }
-    return out
-  }, [q, boards])
+  }
+
+  function stopStream() {
+    abortRef.current?.abort()
+    setLoading(false)
+    setConversations(prev => prev.map(c =>
+      c.id === activeId
+        ? { ...c, messages: c.messages.map(m => m.streaming ? { ...m, streaming: false } : m) }
+        : c
+    ))
+  }
+
+  function deleteConv(id, e) {
+    e.stopPropagation()
+    setConversations(prev => prev.filter(c => c.id !== id))
+    if (activeId === id) setActiveId(null)
+  }
+
+  const chatPanel = (
+    <ChatPanel
+      hideHeader
+      messages={messages}
+      loading={loading}
+      onSend={handleSend}
+      stopStream={stopStream}
+      model="claude-haiku-4-5"
+      inputValue={input}
+      onInputChange={setInput}
+      clearOnSubmit
+      placeholder="Tanya apa aja…"
+    />
+  )
 
   return (
-    <div className="page-frame">
-      <div className={`page-scroll claude-search ${hasQuery ? 'searching' : ''}`}>
+    <div className="search-page-v2">
 
-        <div className="claude-hero">
-          <h1 className="claude-greeting">
-            <ClaudeStar />
-            {greeting()}, {userName.split(' ')[0]}
-          </h1>
+      {/* ── History panel (slide from right) ── */}
+      {historyOpen && (
+        <div className="search-history-backdrop" onClick={() => setHistoryOpen(false)} />
+      )}
+      <div className={`search-history-panel${historyOpen ? ' open' : ''}`}>
+        <div className="search-history-head">
+          <span className="search-history-title">History</span>
+          <button className="search-history-close" onClick={() => setHistoryOpen(false)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <button className="search-new-chat-btn" onClick={() => { setActiveId(null); setInput(''); setHistoryOpen(false) }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New Chat
+        </button>
+        <div className="search-conv-list">
+          {conversations.length === 0 && (
+            <p className="search-conv-empty">Belum ada riwayat</p>
+          )}
+          {conversations.map(c => (
+            <div
+              key={c.id}
+              className={`search-conv-item ${c.id === activeId ? 'active' : ''}`}
+              onClick={() => { setActiveId(c.id); setHistoryOpen(false) }}
+            >
+              <span className="search-conv-title">{c.title || 'Chat baru'}</span>
+              <button className="search-conv-del" title="Hapus" onClick={e => deleteConv(c.id, e)}>×</button>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Main ── */}
+      <div className="search-main-v2">
+        <div className="search-topbar-v2">
+          <button className="search-history-btn" onClick={() => setHistoryOpen(v => !v)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            History
+          </button>
         </div>
 
-        <div className="claude-input-card">
-          <input
-            autoFocus
-            className="claude-input"
-            placeholder="Cari card, atau tanya AI apa aja…"
-            value={q}
-            onChange={e => setQ(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Escape') setQ('')
-              if (e.key === 'Enter') askAI()
-            }}
-          />
-          <div className="claude-input-foot">
-            <span className="claude-plus">+</span>
-            <span className="claude-model">
-              {hasQuery
-                ? <button className="claude-ask-btn" onClick={askAI}>✦ Tanya AI <kbd>↵</kbd></button>
-                : 'Search semua board · Enter = tanya AI'}
-              {hasQuery && <button className="search-clear" onClick={() => setQ('')}>×</button>}
-            </span>
-          </div>
-        </div>
-
-        {!hasQuery && (
-          <div className="claude-chips">
-            {CHIPS.map(c => (
-              <button key={c.label} className="claude-chip" onClick={() => c.q && setQ(c.q)}>
-                <span>{c.icon}</span> {c.label}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {hasQuery && (
-          <div className="claude-results">
-            <p className="search-count">
-              {results.length === 0 ? 'Nggak ketemu apa-apa 😅' : `${results.length} hasil ditemukan`}
-            </p>
-            <div className="search-results">
-              {results.map(({ board, column, card }, i) => (
-                <button
-                  key={card.id}
-                  className="search-result anim-in"
-                  style={{ animationDelay: `${i * 45}ms` }}
-                  onClick={() => onOpenCard(board.id, card)}
-                >
-                  <div className="search-result-top">
-                    <span className="search-result-title">{highlight(card.title, q.trim())}</span>
-                    {card.posted && <span className="search-result-done">✓ Done</span>}
-                  </div>
-                  {card.description && (
-                    <p className="search-result-desc">{highlight(card.description, q.trim())}</p>
-                  )}
-                  <div className="search-result-meta">
-                    <span className="search-result-chip">🌿 {board.label}</span>
-                    <span className="search-result-chip">{column.title}</span>
-                    {card.due && <span className="search-result-chip">📅 {card.due}</span>}
-                  </div>
+        {!hasMessages ? (
+          /* ── Empty: Claude-style centered hero ── */
+          <div className="search-empty-wrap">
+            <HeroGreeting key={newChatKey} name={firstName} />
+            <div className="search-panel-host empty">{chatPanel}</div>
+            <div className="search-chips">
+              {CHIPS.map(c => (
+                <button key={c.label} className="search-chip" onClick={() => setInput(c.label)}>
+                  {c.icon} {c.label}
                 </button>
               ))}
             </div>
           </div>
+        ) : (
+          /* ── Active conversation ── */
+          <div className="search-panel-host active">{chatPanel}</div>
         )}
-
       </div>
     </div>
   )

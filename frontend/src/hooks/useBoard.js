@@ -138,11 +138,26 @@ export function useMultiBoard() {
     })))
   }, [updateActive])
 
-  const deleteCard = useCallback((cardId) => {
-    updateActive(cols => cols.map(col => ({
-      ...col,
-      cards: col.cards.filter(c => c.id !== cardId),
-    })))
+  const deleteCard = useCallback((cardId, fallbackTitle = '') => {
+    updateActive(cols => {
+      // Normal path: hapus by id
+      const idExists = cols.some(col => col.cards.some(c => c.id === cardId))
+      if (idExists) {
+        return cols.map(col => ({ ...col, cards: col.cards.filter(c => c.id !== cardId) }))
+      }
+      // Fallback: id nggak ketemu (mis. AI ngasih id ngawur/stale) → match by title
+      const target = (fallbackTitle || '').trim().toLowerCase()
+      if (!target) return cols
+      let removed = false
+      return cols.map(col => ({
+        ...col,
+        cards: col.cards.filter(c => {
+          if (removed) return true
+          if ((c.title || '').trim().toLowerCase() === target) { removed = true; return false }
+          return true
+        }),
+      }))
+    })
   }, [updateActive])
 
   const moveCard = useCallback((cardId, targetColumnId, targetIndex = -1) => {
@@ -208,6 +223,29 @@ export function useMultiBoard() {
     })))
   }, [updateActive])
 
+  const addChecklistItem = useCallback((cardId, text) => {
+    updateActive(cols => cols.map(col => ({
+      ...col,
+      cards: col.cards.map(c => c.id === cardId
+        ? { ...c, checklist: [...(c.checklist || []), { id: genId(), text, done: false }] }
+        : c
+      ),
+    })))
+  }, [updateActive])
+
+  const toggleChecklistItem = useCallback((cardId, itemText) => {
+    const target = (itemText || '').trim().toLowerCase()
+    updateActive(cols => cols.map(col => ({
+      ...col,
+      cards: col.cards.map(c => c.id === cardId
+        ? { ...c, checklist: (c.checklist || []).map(it =>
+            (it.text || '').trim().toLowerCase() === target ? { ...it, done: !it.done } : it
+          ) }
+        : c
+      ),
+    })))
+  }, [updateActive])
+
   const getBoardSummary = useCallback(() => {
     return activeBoard.columns.map(col => ({
       id: col.id, title: col.title, cardCount: col.cards.length,
@@ -217,9 +255,23 @@ export function useMultiBoard() {
         due: c.due || undefined,
         color: c.color || undefined,
         done: c.posted || undefined,
+        checklist: (c.checklist || []).length
+          ? c.checklist.map(it => ({ text: it.text, done: !!it.done }))
+          : undefined,
+        commentCount: (c.comments || []).length || undefined,
       })),
     }))
   }, [activeBoard])
+
+  // Ringkasan SEMUA board (buat AI search lintas board)
+  const getAllBoardsSummary = useCallback(() => {
+    return safeBoards.map(b => ({
+      id: b.id, label: b.label || b.name || 'Board',
+      cards: (b.columns || []).flatMap(col =>
+        (col.cards || []).map(c => ({ title: c.title, column: col.title, due: c.due || undefined }))
+      ),
+    }))
+  }, [safeBoards])
 
   return {
     board,
@@ -229,7 +281,8 @@ export function useMultiBoard() {
     addTab, switchTab, renameTab, deleteTab,
     addCard, updateCard, deleteCard, duplicateCard, moveCard, setColumns,
     addColumn, renameColumn, deleteColumn,
-    addComment, deleteComment, getBoardSummary,
+    addComment, deleteComment, addChecklistItem, toggleChecklistItem,
+    getBoardSummary, getAllBoardsSummary,
   }
 }
 

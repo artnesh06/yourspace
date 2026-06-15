@@ -10,12 +10,27 @@ const GREETING = {
   ts: Date.now(),
 }
 
+// Buang reminder assistant yang kontennya kembar (efek bug lama: reminder
+// ke-append tiap reload sampai numpuk). Sisain kemunculan pertama aja.
+function dedupeMessages(msgs) {
+  const seen = new Set()
+  return msgs.filter(m => {
+    const isReminder = m.role === 'assistant' && typeof m.content === 'string' && m.content.startsWith('⏰ Reminder!')
+    if (!isReminder) return true
+    if (seen.has(m.content)) return false
+    seen.add(m.content)
+    return true
+  })
+}
+
 function loadStored() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
     const data = JSON.parse(raw)
-    if (Array.isArray(data.messages) && data.messages.length > 0) return data
+    if (Array.isArray(data.messages) && data.messages.length > 0) {
+      return { ...data, messages: dedupeMessages(data.messages) }
+    }
   } catch { /* corrupt storage — start fresh */ }
   return null
 }
@@ -40,10 +55,10 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
     } catch { /* storage full — ignore */ }
   }, [messages, model])
 
-  const sendMessage = useCallback(async (userText) => {
-    if (!userText.trim() || loading) return
+  const sendMessage = useCallback(async (userText, image = null) => {
+    if ((!userText.trim() && !image) || loading) return
 
-    const userMsg = { id: 'm' + Date.now(), role: 'user', content: userText, ts: Date.now() }
+    const userMsg = { id: 'm' + Date.now(), role: 'user', content: userText, image: image || undefined, ts: Date.now() }
     setMessages(prev => [...prev, userMsg])
     setLoading(true)
 
@@ -55,7 +70,9 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
     }])
 
     const boardSummary = getBoardSummary()
-    historyRef.current = [...historyRef.current, { role: 'user', content: userText }]
+    // Catatan: gambar cuma dilampirkan/disimpan, AI nggak baca isinya
+    const textForAI = userText.trim() || '(user melampirkan sebuah gambar)'
+    historyRef.current = [...historyRef.current, { role: 'user', content: textForAI }]
 
     try {
       abortRef.current = new AbortController()
@@ -65,7 +82,7 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
         headers: { 'Content-Type': 'application/json' },
         signal: abortRef.current.signal,
         body: JSON.stringify({
-          message: userText,
+          message: textForAI,
           model,
           user_id: userId,
           chat_history: historyRef.current.slice(-20),
@@ -134,9 +151,15 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
       }
     } catch (err) {
       if (err.name === 'AbortError') return
+      // "Failed to fetch" = network/koneksi gagal (backend mati / gak kejangkau).
+      // Kasih pesan yang jelas, bukan istilah teknis.
+      const isNetwork = err.message === 'Failed to fetch' || err.name === 'TypeError'
+      const friendly = isNetwork
+        ? '⚠️ Gak bisa nyambung ke server AI. Pastiin backend (port 8000) lagi jalan, terus coba lagi.'
+        : `⚠️ Error: ${err.message}`
       setMessages(prev => prev.map(m =>
         m.id === assistantId
-          ? { ...m, content: `⚠️ Error: ${err.message}`, streaming: false }
+          ? { ...m, content: friendly, streaming: false }
           : m
       ))
     } finally {
@@ -157,10 +180,15 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
     try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
   }, [])
 
-  // pesan assistant lokal (tanpa hit API) — dipakai buat reminder deadline
+  // pesan assistant lokal (tanpa hit API) — dipakai buat reminder deadline.
+  // Dedupe: kalau pesan dengan konten sama udah ada (mis. ke-restore dari
+  // localStorage lalu effect jalan lagi pas reload), jangan tambah lagi.
   const addLocalAssistant = useCallback((content) => {
-    setMessages(prev => [...prev, { id: 'mr' + Date.now(), role: 'assistant', content, ts: Date.now() }])
-    historyRef.current = [...historyRef.current, { role: 'assistant', content }]
+    setMessages(prev => {
+      if (prev.some(m => m.role === 'assistant' && m.content === content)) return prev
+      historyRef.current = [...historyRef.current, { role: 'assistant', content }]
+      return [...prev, { id: 'mr' + Date.now(), role: 'assistant', content, ts: Date.now() }]
+    })
   }, [])
 
   return { messages, loading, sendMessage, stopStream, clearChat, addLocalAssistant, model, setModel }

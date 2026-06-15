@@ -5,6 +5,7 @@ html, body { height: 100%; }
 
 :root {
   /* ── Ink & canvas ── */
+  --app-bg:     #FAF9F5;
   --canvas:     #FFFFFF;
   --canvas-deep:#F8F8F8;
   --surface:    #FFFFFF;
@@ -117,6 +118,7 @@ body.is-dragging * { cursor: grabbing !important; }
 
 /* ════════ NIGHT THEME — ala Claude ════════ */
 html[data-theme="dark"] {
+  --app-bg:      #262624;
   --canvas:      #262624;
   --canvas-deep: #1F1F1D;
   --surface:     #30302E;

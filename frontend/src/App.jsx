@@ -26,7 +26,8 @@ import { ClockPage } from './pages/ClockPage'
 import { CalendarPage } from './pages/CalendarPage'
 import { TeamPage } from './pages/TeamPage'
 import { PayrollPage } from './pages/PayrollPage'
-import logo from './assets/logo.png'
+import Logo from './components/Logo'
+import initialLoadingGif from './assets/initial-loading.gif'
 import './App.css'
 
 const PAGES = ['home', 'search', 'board', 'absen', 'calendar', 'team', 'payroll']
@@ -43,6 +44,12 @@ function SidebarIcon({ active, title, onClick, children }) {
 /* ── Root: auth gate ── */
 export default function App() {
   const { user, checking, login, register, logout } = useAuth()
+  const [initialLoading, setInitialLoading] = useState(true)
+
+  useEffect(() => {
+    const t = setTimeout(() => setInitialLoading(false), 900)
+    return () => clearTimeout(t)
+  }, [])
   const [theme, setTheme] = useTheme()
 
   if (checking) {
@@ -52,7 +59,14 @@ export default function App() {
       </div>
     )
   }
-  if (!user) return <AuthPage onLogin={login} onRegister={register} />
+  if (initialLoading) {
+    return (
+      <div className="initial-loader-overlay">
+        <img src={initialLoadingGif} alt="Loading…" className="initial-loading-gif" />
+      </div>
+    )
+  }
+  if (!user) return <AuthPage theme={theme} setTheme={setTheme} onLogin={login} onRegister={register} />
   return <Workspace key={user.id} user={user} onLogout={logout} theme={theme} setTheme={setTheme} />
 }
 
@@ -69,12 +83,14 @@ function Workspace({ user, onLogout, theme, setTheme }) {
   const [activeFilter, setActiveFilter] = useState('all')
   const [addingTab, setAddingTab]       = useState(false)
   const [newTabName, setNewTabName]     = useState('')
+  const [searchNewKey, setSearchNewKey] = useState(0)
 
   const {
     board, boards, activeId,
     addTab, switchTab, deleteTab,
     addCard, updateCard, deleteCard, duplicateCard, moveCard, setColumns,
-    addColumn, renameColumn, deleteColumn, addComment, deleteComment, getBoardSummary,
+    addColumn, renameColumn, deleteColumn, addComment, deleteComment,
+    addChecklistItem, toggleChecklistItem, getBoardSummary, getAllBoardsSummary,
   } = useMultiBoard()
 
   const attendance = useAttendance()
@@ -108,7 +124,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
       case 'add_card':      addCard(action.columnId, action.title, action.description || '', action.due || ''); log('ai', `AI nambahin card "${action.title}"`); break
       case 'update_card':   updateCard(action.cardId, action.changes || {}); log('ai', 'AI update card'); break
       case 'move_card':     moveCard(action.cardId, action.targetColumnId); log('ai', 'AI mindahin card'); break
-      case 'delete_card':   deleteCard(action.cardId); log('ai', 'AI hapus card'); break
+      case 'delete_card':   deleteCard(action.cardId, action.title || ''); log('ai', 'AI hapus card'); break
       case 'open_card':     setPage('board'); setModalCard({ id: action.cardId }); break
       case 'add_column':    addColumn(action.title); log('ai', `AI nambahin kolom "${action.title}"`); break
       case 'rename_column': renameColumn(action.columnId, action.title); break
@@ -129,10 +145,37 @@ function Workspace({ user, onLogout, theme, setTheme }) {
         log('team', `AI nambahin anggota: ${m.name} (${m.role})`)
         break
       }
+      case 'duplicate_card':  duplicateCard(action.cardId); log('ai', 'AI duplicate card'); break
+      case 'add_comment':     addComment(action.cardId, action.text || ''); log('ai', 'AI nambah komentar'); break
+      case 'add_checklist_item':    addChecklistItem(action.cardId, action.text || ''); log('ai', 'AI nambah checklist item'); break
+      case 'toggle_checklist_item': toggleChecklistItem(action.cardId, action.text || ''); log('ai', 'AI toggle checklist'); break
+      case 'update_team_member': {
+        const changes = {}
+        if (action.name != null) changes.name = action.name
+        if (action.role != null) changes.role = action.role
+        if (action.salary != null) changes.salary = action.salary
+        team.updateMember(action.memberId, changes)
+        log('team', 'AI update anggota tim')
+        break
+      }
+      case 'remove_team_member': {
+        let id = action.memberId
+        if (!team.members.some(m => m.id === id) && action.name) {
+          const byName = team.members.find(m => (m.name || '').trim().toLowerCase() === action.name.trim().toLowerCase())
+          if (byName) id = byName.id
+        }
+        team.removeMember(id)
+        log('team', 'AI hapus anggota tim')
+        break
+      }
+      case 'delete_attendance_record':
+        attendance.deleteRecord(action.recordId)
+        log('absen', 'AI hapus record absen')
+        break
     }
-  }, [addCard, updateCard, moveCard, deleteCard, addColumn, renameColumn, deleteColumn, attendance, team, log])
+  }, [addCard, updateCard, moveCard, deleteCard, duplicateCard, addComment, addChecklistItem, toggleChecklistItem, addColumn, renameColumn, deleteColumn, attendance, team, log])
 
-  // App context for the AI (page, absen, team)
+  // App context for the AI (page, absen, team, semua board)
   const getAppContext = useCallback(() => ({
     currentPage: page,
     availablePages: PAGES,
@@ -141,9 +184,11 @@ function Workspace({ user, onLogout, theme, setTheme }) {
       daysPresentThisMonth: attendance.daysPresent,
       hoursThisMonth: fmtDuration(attendance.monthMs),
       streak: attendance.streak,
+      records: (attendance.records || []).slice(-30).map(r => ({ id: r.id, date: r.date })),
     },
     team: team.members.map(m => ({ id: m.id, name: m.name, role: m.role, salary: m.salary })),
-  }), [page, attendance, team])
+    allBoards: getAllBoardsSummary ? getAllBoardsSummary() : undefined,
+  }), [page, attendance, team, getAllBoardsSummary])
 
   const { messages, loading, sendMessage, stopStream, addLocalAssistant, model, setModel } = useChat({ userId: user.id, getBoardSummary, getAppContext, onToolCall: handleToolCall })
 
@@ -303,7 +348,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
       {/* ── Sidebar ── */}
       <aside className="sidebar-v2">
         <div className="sb-logo">
-          <img src={logo} alt="Logo" />
+          <Logo />
         </div>
         <div className="sb-icons-top">
           <SidebarIcon title="Home" active={page === 'home'} onClick={() => setPage('home')}>
@@ -311,7 +356,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
               <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </SidebarIcon>
-          <SidebarIcon title="Search" active={page === 'search'} onClick={() => setPage('search')}>
+          <SidebarIcon title="Search" active={page === 'search'} onClick={() => { setPage('search'); setSearchNewKey(k => k + 1) }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
@@ -413,9 +458,9 @@ function Workspace({ user, onLogout, theme, setTheme }) {
                 <button className="tab-add-btn" onClick={() => setAddingTab(true)} title="Add board">+</button>
               )}
             </div>
-          ) : (
+          ) : page !== 'search' ? (
             <div className="topbar-pagetitle">{PAGE_TITLES[page]}</div>
-          )}
+          ) : null}
 
           <div className="topbar-spacer" />
 
@@ -445,12 +490,14 @@ function Workspace({ user, onLogout, theme, setTheme }) {
             </>
           )}
 
-          <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-            </svg>
-            AI Chat
-          </button>
+          {page !== 'search' && (
+            <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              AI Chat
+            </button>
+          )}
         </header>
 
         {/* ── Filter Bar (board only) ── */}
@@ -473,8 +520,10 @@ function Workspace({ user, onLogout, theme, setTheme }) {
             userName={user.name} onNavigate={setPage} onOpenChat={() => setChatOpen(true)}
           />
         )}
-        {page === 'search'   && <SearchPage boards={boards} userName={user.name} onOpenCard={openCardFromPage}
-          onAskAI={q => { setChatOpen(true); sendMessage(q) }} />}
+        {page === 'search'   && <SearchPage
+          userName={user.name}
+          newChatKey={searchNewKey}
+        />}
         {page === 'absen'    && <ClockPage attendance={attendance} onLog={log} />}
         {page === 'calendar' && <CalendarPage boards={boards} onOpenCard={openCardFromPage} />}
         {page === 'team'     && <TeamPage team={team} onLog={log} />}
@@ -532,17 +581,20 @@ function Workspace({ user, onLogout, theme, setTheme }) {
       </div>
 
       {/* ── Chat Panel ── */}
-      <div className={`chat-panel-wrapper ${chatOpen ? 'open' : ''}`}>
-        <div className="chat-panel-backdrop" onClick={() => setChatOpen(false)} />
-        <div className="chat-panel">
-          <ChatPanel
-            messages={messages} loading={loading}
-            onSend={sendMessage} stopStream={stopStream}
-            onClose={() => setChatOpen(false)}
-            model={model} onModelChange={setModel}
-          />
+      {page !== 'search' && (
+        <div className={`chat-panel-wrapper ${chatOpen ? 'open' : ''}`}>
+          <div className="chat-panel-backdrop" onClick={() => setChatOpen(false)} />
+          <div className="chat-panel">
+            <ChatPanel
+              messages={messages} loading={loading}
+              onSend={sendMessage} stopStream={stopStream}
+              onClose={() => setChatOpen(false)}
+              model={model} onModelChange={setModel}
+              hideHeader
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {freshModalCard && (
         <CardModal

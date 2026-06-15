@@ -1,0 +1,53 @@
+.ripple-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+  padding: 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@media (max-width: 640px) {
+  .ripple-grid {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 12px;
+    padding: 16px;
+  }
+}
+
+.ripple-cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1), 0 16px 32px rgba(250, 249, 246, 0.08);
+  animation: rippleGridPulse 8s ease-in-out infinite;
+  opacity: 0.45;
+  transform: translateY(0) scale(1);
+}
+
+html[data-theme="dark"] .ripple-cell {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 16px 32px rgba(0, 0, 0, 0.16);
+}
+
+.ripple-cell:nth-child(4n) {
+  transform: scale(0.96);
+}
+
+.ripple-cell:nth-child(5n) {
+  opacity: 0.32;
+}
+
+@keyframes rippleGridPulse {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-8px) scale(1.08);
+    opacity: 0.7;
+  }
+}

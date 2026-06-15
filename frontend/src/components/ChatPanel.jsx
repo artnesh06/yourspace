@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
+import chatLoadingGif from '../assets/chat-loading.gif'
 import { useModels } from '../hooks/useModels'
+import { uploadFile } from '../lib/api'
 
 /* ── Claude starburst logo ────────────────────────────────────── */
 function ClaudeStar({ size = 26, className = '' }) {
@@ -29,18 +31,77 @@ function ClaudeStar({ size = 26, className = '' }) {
   )
 }
 
-/* ── Streaming text: Claude-style word fade-in ────────────────── */
+/* ── Streaming text: markdown-aware, word fade-in (Claude style) ──
+   Renders **bold** / *italic* / `code` live — even before the closing
+   marker arrives — so the user never sees raw `**` while streaming.    */
+function tokenizeInline(text) {
+  const runs = []
+  let rem = text
+  let guard = 0
+  while (rem.length && guard++ < 8000) {
+    let m
+    if ((m = rem.match(/^\*\*\*([^]+?)\*\*\*/))) { runs.push({ t: m[1], b: true, i: true }); rem = rem.slice(m[0].length); continue }
+    if ((m = rem.match(/^\*\*([^]+?)\*\*/)))     { runs.push({ t: m[1], b: true });         rem = rem.slice(m[0].length); continue }
+    if ((m = rem.match(/^`([^`]+)`/)))           { runs.push({ t: m[1], code: true });      rem = rem.slice(m[0].length); continue }
+    if ((m = rem.match(/^\*([^*]+?)\*/)))        { runs.push({ t: m[1], i: true });         rem = rem.slice(m[0].length); continue }
+    // unclosed markers while streaming → format the remainder, drop the markers
+    if (rem.startsWith('***')) { runs.push({ t: rem.slice(3), b: true, i: true }); break }
+    if (rem.startsWith('**'))  { runs.push({ t: rem.slice(2), b: true }); break }
+    if (rem.startsWith('`'))   { runs.push({ t: rem.slice(1), code: true }); break }
+    if (rem.startsWith('*'))   { runs.push({ t: rem.slice(1), i: true }); break }
+    // plain run until the next marker
+    const next = rem.slice(1).search(/[*`]/)
+    if (next === -1) { runs.push({ t: rem }); break }
+    runs.push({ t: rem.slice(0, next + 1) }); rem = rem.slice(next + 1)
+  }
+  return runs
+}
+
+// Stable keys (counter is append-only) so only NEW words animate, not the whole block.
+function runsToWords(runs, counter) {
+  const out = []
+  for (const run of runs) {
+    for (const piece of run.t.split(/(\s+)/)) {
+      if (piece === '') continue
+      if (!piece.trim()) { out.push(<span key={'s' + counter.n++}>{piece}</span>); continue }
+      let node = piece
+      if (run.code) node = <code className="md-code">{node}</code>
+      if (run.i)    node = <em>{node}</em>
+      if (run.b)    node = <strong>{node}</strong>
+      out.push(<span key={'w' + counter.n++} className="stream-word">{node}</span>)
+    }
+  }
+  return out
+}
+
 function StreamingText({ text }) {
-  const parts = text.split(/(\s+)/)
-  return (
-    <span className="chat-streaming-text">
-      {parts.map((part, i) =>
-        part.trim()
-          ? <span key={i} className="stream-word">{part}</span>
-          : <span key={i}>{part}</span>
-      )}
-    </span>
-  )
+  const counter = { n: 0 }
+  const lines = text.split('\n')
+  const blocks = []
+  let li = 0
+  while (li < lines.length) {
+    const line = lines[li]
+    if (!line.trim()) { blocks.push(<div key={'br' + li} className="stream-break" />); li++; continue }
+    if (/^[-*+] /.test(line)) {
+      const items = []
+      while (li < lines.length && /^[-*+] /.test(lines[li])) {
+        items.push(<li key={li}>{runsToWords(tokenizeInline(lines[li].slice(2)), counter)}</li>); li++
+      }
+      blocks.push(<ul key={'ul' + li} className="md-ul">{items}</ul>); continue
+    }
+    if (/^\d+\. /.test(line)) {
+      const items = []
+      while (li < lines.length && /^\d+\. /.test(lines[li])) {
+        items.push(<li key={li}>{runsToWords(tokenizeInline(lines[li].replace(/^\d+\. /, '')), counter)}</li>); li++
+      }
+      blocks.push(<ol key={'ol' + li} className="md-ol">{items}</ol>); continue
+    }
+    if (line.startsWith('### ')) { blocks.push(<h4 key={li} className="md-h3">{runsToWords(tokenizeInline(line.slice(4)), counter)}</h4>); li++; continue }
+    if (line.startsWith('## '))  { blocks.push(<h3 key={li} className="md-h2">{runsToWords(tokenizeInline(line.slice(3)), counter)}</h3>); li++; continue }
+    if (line.startsWith('# '))   { blocks.push(<h2 key={li} className="md-h1">{runsToWords(tokenizeInline(line.slice(2)), counter)}</h2>); li++; continue }
+    blocks.push(<p key={li} className="md-p">{runsToWords(tokenizeInline(line), counter)}</p>); li++
+  }
+  return <div className="chat-streaming-text md-content">{blocks}</div>
 }
 
 /* ── Model Picker ─────────────────────────────────────────────── */
@@ -266,8 +327,25 @@ function parseInline(text) {
 function ToolBadge({ event }) {
   const label = {
     add_card: '+ Added card',
+    update_card: '✎ Updated card',
     move_card: '↔ Moved card',
     delete_card: '✕ Deleted card',
+    duplicate_card: '⧉ Duplicated card',
+    open_card: '↗ Opened card',
+    add_column: '+ Added column',
+    rename_column: '✎ Renamed column',
+    delete_column: '✕ Deleted column',
+    add_comment: '💬 Added comment',
+    add_checklist_item: '☑ Added checklist item',
+    toggle_checklist_item: '☑ Toggled checklist',
+    add_team_member: '+ Added member',
+    update_team_member: '✎ Updated member',
+    remove_team_member: '✕ Removed member',
+    delete_attendance_record: '✕ Deleted absen',
+    clock_in: '🟢 Clock in',
+    clock_out: '🔴 Clock out',
+    navigate_page: '🧭 Navigated',
+    save_memory: '🧠 Saved memory',
     get_board_status: '📋 Read board',
   }[event.tool] || `🔧 ${event.tool}`
 
@@ -277,11 +355,35 @@ function ToolBadge({ event }) {
 /* ── Action icons under assistant message (Claude style) ──────── */
 function MessageActions({ msg, onRetry }) {
   const [copied, setCopied] = useState(false)
+  const [speaking, setSpeaking] = useState(false)
+  const [feedback, setFeedback] = useState(null) // 'up' | 'down' | null
 
   function handleCopy() {
     navigator.clipboard?.writeText(msg.content || '')
     setCopied(true)
     setTimeout(() => setCopied(false), 1500)
+  }
+
+  function handleSpeak() {
+    const synth = window.speechSynthesis
+    if (!synth) return
+    if (speaking) { synth.cancel(); setSpeaking(false); return }
+    synth.cancel()
+    const u = new SpeechSynthesisUtterance(msg.content || '')
+    u.lang = 'id-ID'
+    const idVoice = synth.getVoices().find(v => v.lang?.startsWith('id'))
+    if (idVoice) u.voice = idVoice
+    u.onend = () => setSpeaking(false)
+    u.onerror = () => setSpeaking(false)
+    setSpeaking(true)
+    synth.speak(u)
+  }
+
+  // stop speaking if the component unmounts
+  useEffect(() => () => { if (speaking) window.speechSynthesis?.cancel() }, [speaking])
+
+  function handleFeedback(val) {
+    setFeedback(prev => (prev === val ? null : val))
   }
 
   return (
@@ -292,14 +394,17 @@ function MessageActions({ msg, onRetry }) {
           : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         }
       </button>
-      <button className="chat-action-btn" title="Read aloud">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+      <button className={`chat-action-btn ${speaking ? 'active' : ''}`} title={speaking ? 'Stop' : 'Read aloud'} onClick={handleSpeak}>
+        {speaking
+          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+          : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>
+        }
       </button>
-      <button className="chat-action-btn" title="Good response">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
+      <button className={`chat-action-btn ${feedback === 'up' ? 'active' : ''}`} title="Good response" onClick={() => handleFeedback('up')}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={feedback === 'up' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3z"/><path d="M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg>
       </button>
-      <button className="chat-action-btn" title="Bad response">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
+      <button className={`chat-action-btn ${feedback === 'down' ? 'active' : ''}`} title="Bad response" onClick={() => handleFeedback('down')}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill={feedback === 'down' ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3z"/><path d="M17 2h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg>
       </button>
       <button className="chat-action-btn" title="Retry" onClick={() => onRetry?.(msg.id)}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -315,7 +420,10 @@ function ChatMessage({ msg, onRetry }) {
   if (isUser) {
     return (
       <div className="chat-msg chat-msg--user">
-        <div className="chat-msg-bubble">{msg.content}</div>
+        <div className="chat-msg-bubble">
+          {msg.image && <img className="chat-msg-image" src={msg.image} alt="lampiran" />}
+          {msg.content && <span>{msg.content}</span>}
+        </div>
       </div>
     )
   }
@@ -334,7 +442,10 @@ function ChatMessage({ msg, onRetry }) {
         {msg.streaming
           ? (msg.content
               ? <div className="chat-assistant-text"><StreamingText text={msg.content} /></div>
-              : <ClaudeStar size={28} className="claude-star claude-star--loading" />)
+              : <div className="chat-thinking">
+                  <img src={chatLoadingGif} alt="" className="chat-loading-gif" />
+                  <span className="chat-thinking-text">{msg.thinkingLabel || 'AI lagi mikir'}<span className="chat-thinking-dots" /></span>
+                </div>)
           : (msg.content
               ? <div className="chat-assistant-text md-content">{renderMarkdown(msg.content)}</div>
               : <span className="chat-empty">…</span>)
@@ -348,21 +459,59 @@ function ChatMessage({ msg, onRetry }) {
 }
 
 /* ── Main ChatPanel ───────────────────────────────────────────── */
-export function ChatPanel({ messages, loading, onSend, stopStream, onClose, model, onModelChange }) {
+export function ChatPanel({
+  messages,
+  loading,
+  onSend,
+  stopStream,
+  onClose,
+  model,
+  onModelChange,
+  title = 'AI Chat',
+  hideHeader = false,
+  inputValue,
+  onInputChange,
+  clearOnSubmit = true,
+  placeholder = 'Tulis pesan…',
+}) {
   const [input, setInput]         = useState('')
-  const [pickerOpen, setPickerOpen] = useState(false)
+  const [pendingImage, setPendingImage] = useState(null) // { url, name }
+  const [uploading, setUploading] = useState(false)
   const bottomRef = useRef(null)
   const textareaRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  async function handlePickImage(e) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // reset biar bisa pilih file sama lagi
+    if (!file) return
+    setUploading(true)
+    try {
+      const { url } = await uploadFile(file)
+      setPendingImage({ url, name: file.name })
+    } catch (err) {
+      alert('Gagal upload gambar: ' + (err?.message || 'unknown'))
+    } finally {
+      setUploading(false)
+    }
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
-    if (!input.trim() || loading) return
-    onSend(input.trim())
-    setInput('')
+    // Controlled mode (Search) menaruh teks di `inputValue`, bukan state internal.
+    // Pakai nilai efektif biar submit/Enter jalan di kedua mode.
+    const text = typeof inputValue === 'string' ? inputValue : input
+    if ((!text.trim() && !pendingImage) || loading) return
+    onSend(text.trim(), pendingImage?.url || null)
+    if (clearOnSubmit) {
+      if (onInputChange) onInputChange('')
+      else setInput('')
+    }
+    setPendingImage(null)
     if (textareaRef.current) textareaRef.current.style.height = 'auto'
   }
 
@@ -371,7 +520,8 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
   }
 
   function handleInput(e) {
-    setInput(e.target.value)
+    if (onInputChange) onInputChange(e.target.value)
+    else setInput(e.target.value)
     e.target.style.height = 'auto'
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
   }
@@ -384,24 +534,29 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
     }
   }
 
-  // Short display name for model button
-  const modelShort = model.length > 22 ? model.slice(0, 20) + '…' : model
-
   const lastMsg = messages[messages.length - 1]
+  const currentInput = typeof inputValue === 'string' ? inputValue : input
 
   return (
     <div className="chat-panel-inner">
       {/* Header */}
-      <div className="chat-header">
-        <div className="chat-header-left" />
-        <div className="chat-header-actions">
-          <button className="chat-header-btn" title="Close" onClick={onClose}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
+      {!hideHeader && (
+        <div className="chat-header">
+          <div className="chat-header-left">
+            <span className="chat-header-title">{title}</span>
+            <span className="chat-header-badge">{model}</span>
+          </div>
+          <div className="chat-header-actions">
+            {onClose && (
+              <button className="chat-header-btn" title="Close" onClick={onClose}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Messages */}
       <div className="chat-messages">
@@ -410,7 +565,7 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
         {loading && lastMsg?.streaming === false && (
           <div className="chat-msg chat-msg--assistant">
             <div className="chat-msg-body">
-              <ClaudeStar size={28} className="claude-star claude-star--loading" />
+              <img src={chatLoadingGif} alt="loading" className="chat-loading-gif" />
             </div>
           </div>
         )}
@@ -421,33 +576,49 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
       {/* Input area (Claude style) */}
       <div className="chat-input-area">
         <form className="chat-input-box" onSubmit={handleSubmit}>
+          {/* Preview gambar yang dilampirkan */}
+          {pendingImage && (
+            <div className="chat-attach-preview">
+              <img src={pendingImage.url} alt={pendingImage.name} />
+              <button type="button" className="chat-attach-remove" title="Hapus lampiran" onClick={() => setPendingImage(null)}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             className="chat-input"
-            placeholder="Tulis pesan…"
-            value={input}
+            placeholder={placeholder}
+            value={currentInput}
             onChange={handleInput}
             onKeyDown={handleKey}
             rows={1}
           />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={handlePickImage}
+          />
           <div className="chat-input-controls">
-            <button type="button" className="chat-icon-btn" title="Add">
+            <button
+              type="button"
+              className={`chat-icon-btn ${uploading ? 'active' : ''}`}
+              title={uploading ? 'Mengupload…' : 'Lampirkan gambar'}
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
               </svg>
             </button>
             <div className="chat-input-right">
-              <button type="button" className="chat-model-btn" onClick={() => setPickerOpen(true)}>
-                {modelShort}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9"/>
-                </svg>
-              </button>
               {loading ? (
                 <button type="button" className="chat-stop-btn" onClick={stopStream} title="Stop">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2.5"/></svg>
                 </button>
-              ) : input.trim() ? (
+              ) : (currentInput.trim() || pendingImage) ? (
                 <button type="submit" className="chat-send-btn" aria-label="Send">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
@@ -470,17 +641,8 @@ export function ChatPanel({ messages, loading, onSend, stopStream, onClose, mode
             </div>
           </div>
         </form>
-        <div className="chat-disclaimer">Claude adalah AI dan bisa keliru. Harap periksa kembali respons.</div>
+        <div className="chat-disclaimer">Verifikasi respons AI sebelum menggunakannya.</div>
       </div>
-
-      {/* Model picker dropdown */}
-      {pickerOpen && (
-        <ModelPicker
-          model={model}
-          onSelect={onModelChange}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
     </div>
   )
 }

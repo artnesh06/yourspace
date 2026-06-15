@@ -5,7 +5,7 @@
 > Target akhir: **live di internet** — orang bisa daftar, login, pakai semua fitur, dan share board untuk kolaborasi.
 > Untuk AI lain: dokumen ini adalah satu-satunya handoff utama. Ikuti AI operating brief di bawah sebelum edit apa pun.
 
-Terakhir update: **12 Juni 2026, 16:23 WIB** · Progress: **~98% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan · backend deploy commit `832bbfa` ✅ healthy · production register/login ✅ berhasil · dashboard production ✅ kebuka
+Terakhir update: **12 Juni 2026, malam WIB** · Progress: **~99% menuju live** · Fase 1 (fondasi auth + server data) ✅ SELESAI & terverifikasi E2E · Production deploy ✅ berjalan · Smoke test production CRUD + reload ✅ PASS · AI chat production ✅ PASS (add_card) · Batch upgrade AI chat (21 tools + upload foto + UI fixes) ✅ dipush, ⏳ nunggu verifikasi production
 
 ---
 
@@ -76,8 +76,8 @@ Checklist live yang sudah jelas:
 - [x] Redeploy frontend jika masih pakai asset lama.
 - [x] Smoke test login/register production.
 - [x] Dashboard production berhasil kebuka setelah login.
-- [ ] Smoke test CRUD card + reload.
-- [ ] Smoke test AI chat.
+- [x] Smoke test CRUD card + reload — create/edit/move/delete + reload semua persist ke server (12 Juni 2026, ~19.45 WIB).
+- [x] Smoke test AI chat — streaming + tool `add_card` jalan & persist. ⚠️ tool `delete_card` via AI BELUM jalan (AI bilang "sudah dihapus" tapi kartu nggak kehapus di board maupun server). Lihat Bug #5 di bawah.
 - [x] Catat hasil final auth production di dokumen ini untuk AI berikutnya.
 
 ---
@@ -369,6 +369,11 @@ card = { id, title, description /* HTML string */, due /* legacy "15 Apr" */, du
 2. **Mutasi pertama nggak ke-save**: flag skip-save di `useServerState` memakan perubahan user pertama saat server kosong. Fix: `fromServerRef` hanya di-set saat setState berasal dari server
 3. Model Claude ID salah (`claude-haiku-4-5` → harus `claude-haiku-4-5-20251001`)
 4. `board.py` legacy pakai `session.cursor()` (invalid) — route nggak dipakai lagi, diganti `/api/state`
+
+### BUG BELUM DIPERBAIKI
+
+5. ~~**AI tool `delete_card` nggak jalan**~~ **FIX DITERAPKAN 12 Juni 2026** (nunggu verifikasi production). Root cause: AI ngirim `cardId` yang nggak match (id baru hasil `add_card` nggak dibalikin ke AINya / stale). Fix: tool `delete_card` sekarang minta `cardId` + `title`; `deleteCard(cardId, fallbackTitle)` di `useBoard.js` fallback hapus by title kalau id nggak ketemu. Manual delete via menu kartu tetap jalan.
+6. ⚠️ **Save debounce 800ms**: kalau mutasi (mis. delete) lalu hard-reload dalam <800ms, perubahan bisa hilang karena PUT belum sempat nembak server. Bukan bug user nyata (jarang reload secepat itu), tapi worth knowing buat testing.
 
 ## 4. GOTCHA (hal aneh yang sudah diketahui)
 

@@ -1,0 +1,39 @@
+.glare-hover {
+  position: relative;
+  width: var(--gh-width);
+  height: var(--gh-height);
+  background: var(--gh-bg);
+  border-radius: var(--gh-br);
+  border: 1px solid var(--gh-border);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.glare-hover::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -80%;
+  width: 55%;
+  height: 200%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--gh-rgba),
+    transparent
+  );
+  transform: skewX(var(--gh-angle));
+  transition: left var(--gh-duration) ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.glare-hover:hover::after {
+  left: 130%;
+}
+
+.glare-hover--play-once:hover::after {
+  animation: none;
+}
