@@ -10,3 +10,4 @@ greenlet>=3.0.0
 anthropic>=0.40.0
 psycopg2-binary>=2.9.9
 requests
+boto3>=1.26.0
