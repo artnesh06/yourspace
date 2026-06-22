@@ -1810,6 +1810,28 @@
 }
 .tm-section-head svg { color: var(--ink-2); }
 
+/* uploading indicator */
+.tm-uploading-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  background: #FFF4E6;
+  border-left: 3px solid var(--claude-orange);
+  font-size: 13px;
+  color: var(--ink);
+  font-weight: 500;
+}
+.tm-spinner svg {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* description preview */
 .tm-desc-preview {
   font-family: var(--font-serif);

@@ -272,6 +272,7 @@ export function CardModal({
   const [checkOpen, setCheckOpen]     = useState((card.checklist || []).length > 0)
   const [copied, setCopied]           = useState(false)
   const [bannerBg, setBannerBg]       = useState(null)
+  const [uploadingIds, setUploadingIds] = useState(new Set())
   const [split, setSplit]             = useState(() => {
     const saved = Number(localStorage.getItem('ys-modal-split'))
     return saved >= 45 && saved <= 78 ? saved : 63
@@ -377,32 +378,40 @@ export function CardModal({
 
   function addFiles(fileList) {
     Array.from(fileList).forEach(async file => {
+      const fileId = genImgId()
+      setUploadingIds(prev => new Set([...prev, fileId]))
+
       let url
       try {
-        // upload ke server → URL (bukan base64, biar nggak jebol storage)
         const uploaded = await uploadFile(file)
         url = uploaded.url
       } catch {
-        // fallback offline: base64
         url = await new Promise(resolve => {
           const reader = new FileReader()
           reader.onload = ev => resolve(ev.target.result)
           reader.readAsDataURL(file)
         })
       }
+
       if (file.type.startsWith('image/')) {
-        const newImg = { id: genImgId(), name: file.name, url, uploadedAt: new Date().toISOString() }
+        const newImg = { id: fileId, name: file.name, url, uploadedAt: new Date().toISOString() }
         setImages(prev => {
-          if (prev.length === 0) setCoverId(newImg.id)
+          if (prev.length === 0) setCoverId(fileId)
           return [...prev, newImg]
         })
       } else {
         const newFile = {
-          id: genImgId(), name: file.name, url,
+          id: fileId, name: file.name, url,
           size: file.size, type: file.type || 'file', uploadedAt: new Date().toISOString(),
         }
         setFiles(prev => [...prev, newFile])
       }
+
+      setUploadingIds(prev => {
+        const next = new Set(prev)
+        next.delete(fileId)
+        return next
+      })
     })
   }
 
@@ -775,7 +784,7 @@ export function CardModal({
             )}
 
             {/* Attachments */}
-            {(images.length > 0 || files.length > 0) && (
+            {(images.length > 0 || files.length > 0 || uploadingIds.size > 0) && (
               <div className="tm-section">
                 <div className="tm-section-head">
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -783,6 +792,16 @@ export function CardModal({
                   </svg>
                   <span>Attachments</span>
                 </div>
+                {uploadingIds.size > 0 && (
+                  <div className="tm-uploading-banner">
+                    <div className="tm-spinner">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: 'spin .8s linear infinite' }}>
+                        <circle cx="12" cy="12" r="10" strokeDasharray="16" strokeDashoffset="0" />
+                      </svg>
+                    </div>
+                    <span>Uploading {uploadingIds.size} file{uploadingIds.size > 1 ? 's' : ''}…</span>
+                  </div>
+                )}
                 <div className="detail-attachments">
                   {images.map((img, idx) => (
                     <div key={img.id} className="attachment-item">
