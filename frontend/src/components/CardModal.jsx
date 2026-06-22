@@ -377,15 +377,25 @@ export function CardModal({
   }
 
   function addFiles(fileList) {
+    const MAX_RETRIES = 2
     Array.from(fileList).forEach(async file => {
       const fileId = genImgId()
       setUploadingIds(prev => new Set([...prev, fileId]))
 
       let url
-      try {
-        const uploaded = await uploadFile(file)
-        url = uploaded.url
-      } catch {
+      let lastError
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          const uploaded = await uploadFile(file)
+          url = uploaded.url
+          break
+        } catch (err) {
+          lastError = err
+          if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 500 * (attempt + 1)))
+        }
+      }
+
+      if (!url && lastError) {
         url = await new Promise(resolve => {
           const reader = new FileReader()
           reader.onload = ev => resolve(ev.target.result)
