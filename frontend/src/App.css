@@ -1832,6 +1832,33 @@
   to { transform: rotate(360deg); }
 }
 
+/* upload error messages */
+.tm-upload-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.tm-error-msg {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #FEE;
+  border-left: 3px solid #E54;
+  font-size: 13px;
+  color: #C22;
+  animation: slideIn 0.3s ease-out;
+}
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* description preview */
 .tm-desc-preview {
   font-family: var(--font-serif);

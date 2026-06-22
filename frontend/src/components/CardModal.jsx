@@ -273,6 +273,7 @@ export function CardModal({
   const [copied, setCopied]           = useState(false)
   const [bannerBg, setBannerBg]       = useState(null)
   const [uploadingIds, setUploadingIds] = useState(new Set())
+  const [uploadErrors, setUploadErrors] = useState(new Map())
   const [split, setSplit]             = useState(() => {
     const saved = Number(localStorage.getItem('ys-modal-split'))
     return saved >= 45 && saved <= 78 ? saved : 63
@@ -396,6 +397,17 @@ export function CardModal({
       }
 
       if (!url && lastError) {
+        // Upload failed after retries — show error and fall back to base64
+        const errorMsg = lastError.message || 'Upload gagal'
+        setUploadErrors(prev => new Map(prev).set(fileId, `❌ ${file.name}: ${errorMsg}`))
+        setTimeout(() => {
+          setUploadErrors(prev => {
+            const next = new Map(prev)
+            next.delete(fileId)
+            return next
+          })
+        }, 5000)
+
         url = await new Promise(resolve => {
           const reader = new FileReader()
           reader.onload = ev => resolve(ev.target.result)
@@ -810,6 +822,13 @@ export function CardModal({
                       </svg>
                     </div>
                     <span>Uploading {uploadingIds.size} file{uploadingIds.size > 1 ? 's' : ''}…</span>
+                  </div>
+                )}
+                {uploadErrors.size > 0 && (
+                  <div className="tm-upload-errors">
+                    {Array.from(uploadErrors.values()).map((msg, i) => (
+                      <div key={i} className="tm-error-msg">{msg}</div>
+                    ))}
                   </div>
                 )}
                 <div className="detail-attachments">
