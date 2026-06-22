@@ -123,10 +123,10 @@ export function useMultiBoard() {
     }))
   }, [update])
 
-  const addCard = useCallback((columnId, title, description = '', due = '') => {
+  const addCard = useCallback((columnId, title, description = '', due = '', dueAt = '') => {
     updateActive(cols => cols.map(col =>
       col.id === columnId
-        ? { ...col, cards: [{ id: genId(), title, description, due, comments: [], images: [], coverId: null, posted: false }, ...col.cards] }
+        ? { ...col, cards: [{ id: genId(), title, description, due, dueAt, comments: [], images: [], coverId: null, posted: false }, ...col.cards] }
         : col
     ))
   }, [updateActive])

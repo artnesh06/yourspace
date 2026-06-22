@@ -118,7 +118,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
   // ── AI chat ────────────────────────────────────────────────────
   const handleToolCall = useCallback((action) => {
     switch (action.tool) {
-      case 'add_card':      addCard(action.columnId, action.title, action.description || '', action.due || ''); log('ai', `AI nambahin card "${action.title}"`); break
+      case 'add_card':      addCard(action.columnId, action.title, action.description || '', action.due || '', action.dueAt || ''); log('ai', `AI nambahin card "${action.title}"`); break
       case 'update_card':   updateCard(action.cardId, action.changes || {}); log('ai', 'AI update card'); break
       case 'move_card':     moveCard(action.cardId, action.targetColumnId); log('ai', 'AI mindahin card'); break
       case 'delete_card':   deleteCard(action.cardId, action.title || ''); log('ai', 'AI hapus card'); break

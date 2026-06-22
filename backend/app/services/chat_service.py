@@ -299,6 +299,24 @@ def append_memory(user_id: str, note: str) -> None:
             f.write(line)
 
 
+def convert_due_to_iso(due_str: str) -> str:
+    """Convert display format like '25 Apr' to ISO date. If already ISO or invalid, return as-is."""
+    if not due_str or isinstance(due_str, bool):
+        return ""
+    due_str = str(due_str).strip()
+    if not due_str or due_str.lower() in ['none', 'null']:
+        return ""
+    # Already ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS...)
+    if len(due_str) >= 10 and due_str[4] == '-' and due_str[7] == '-':
+        return due_str
+    # Parse short format like "25 Apr" or "13 Jun"
+    try:
+        dt = datetime.strptime(due_str, '%d %b').replace(year=datetime.now().year)
+        return dt.isoformat().split('T')[0]  # YYYY-MM-DD
+    except ValueError:
+        return due_str  # Return as-is if parsing fails
+
+
 def build_claude_system(board_data: dict, memory: str) -> str:
     parts = [CLAUDE_SYSTEM_PROMPT]
     if memory:
@@ -313,16 +331,22 @@ def build_claude_system(board_data: dict, memory: str) -> str:
 def execute_claude_tool(tool_name: str, tool_input: dict, board_data: dict, user_id: str) -> dict:
     """Execute a tool. Board mutations return an action dict that the frontend applies."""
     if tool_name == "add_card":
+        due_str = tool_input.get("due", "")
+        due_iso = convert_due_to_iso(due_str) if due_str else ""
         return {
             "action": "add_card",
             "columnId": tool_input.get("columnId"),
             "title": tool_input.get("title"),
             "description": tool_input.get("description", ""),
-            "due": tool_input.get("due", ""),
+            "due": due_str,  # display format
+            "dueAt": due_iso,  # ISO format for backend
             "success": True,
         }
     if tool_name == "update_card":
         changes = {k: v for k, v in tool_input.items() if k != "cardId" and v is not None}
+        # Convert "due" (display format) to "dueAt" (ISO format)
+        if "due" in changes:
+            changes["dueAt"] = convert_due_to_iso(changes.pop("due"))
         return {"action": "update_card", "cardId": tool_input.get("cardId"), "changes": changes, "success": True}
     if tool_name == "move_card":
         return {
