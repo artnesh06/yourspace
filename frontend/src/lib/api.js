@@ -1,21 +1,8 @@
-const PRODUCTION_API_BASE_URL = 'https://api.artnesh.cloud'
-
-function getFallbackApiBase() {
-  if (typeof window === 'undefined') return ''
-
-  const host = window.location.hostname
-  const isArtneshApp =
-    host === 'artnesh.cloud' ||
-    (host.endsWith('.artnesh.cloud') &&
-      host !== 'api.artnesh.cloud' &&
-      host !== 'deploy.artnesh.cloud')
-
-  return isArtneshApp ? PRODUCTION_API_BASE_URL : ''
-}
-
-const rawApiBase =
-  import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD ? PRODUCTION_API_BASE_URL : getFallbackApiBase())
+// Default: same-origin. API di-route lewat domain frontend (/api, /uploads)
+// supaya nggak butuh subdomain api.* terpisah — bebas CORS dan nggak kena
+// blokir proxy/firewall yang suka nutup subdomain tertentu. Set
+// VITE_API_BASE_URL cuma kalau backend emang beda origin.
+const rawApiBase = import.meta.env.VITE_API_BASE_URL || ''
 
 export const API_BASE_URL = rawApiBase.replace(/\/$/, '')
 
