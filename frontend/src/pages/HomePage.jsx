@@ -51,7 +51,7 @@ const TYPE_META = {
   system: { icon: '⚙️', label: 'Sistem' },
 }
 
-const SEGMENT_COLORS = ['#C96442', '#D9A04E', '#6B8E7F', '#8C7BB5', '#C97A8A', '#5E8CA7']
+const SEGMENT_COLORS = ['#FF6B54', '#FFB547', '#4ECDC4', '#A78FFF', '#FF6B9D', '#54B3FF']
 
 /* ── GitHub-style heatmap ─────────────────────────────────────── */
 const HEAT_COLORS = ['var(--claude-soft)', '#F6DACD', '#EDA98C', '#D97757', '#B5532F']
