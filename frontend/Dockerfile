@@ -20,8 +20,11 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # and writes the result to /etc/nginx/conf.d/default.conf at container start
 COPY default.conf.template /etc/nginx/templates/default.conf.template
 
-# Internal hostname of the backend service. Override in Coolify env if different.
-ENV BACKEND_URL=http://backend:8000
+# Backend address nginx proxies /api & /uploads to. Override in Coolify env.
+#   - public domain : BACKEND_URL=https://api.artnesh.cloud  BACKEND_HOST=api.artnesh.cloud
+#   - internal name : BACKEND_URL=http://backend:8000        BACKEND_HOST=backend
+ENV BACKEND_URL=https://api.artnesh.cloud
+ENV BACKEND_HOST=api.artnesh.cloud
 
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
