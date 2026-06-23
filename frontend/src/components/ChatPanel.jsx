@@ -440,7 +440,13 @@ function ChatMessage({ msg, onRetry }) {
         {/* Content */}
         {msg.streaming
           ? (msg.content
-              ? <div className="chat-assistant-text"><StreamingText text={msg.content} /></div>
+              ? <>
+                  <div className="chat-assistant-text"><StreamingText text={msg.content} /></div>
+                  <div className="chat-thinking chat-thinking--inline">
+                    <img src={chatLoadingGif} alt="" className="chat-loading-gif" />
+                    <span className="chat-thinking-text">Sedang mengerjakan<span className="chat-thinking-dots" /></span>
+                  </div>
+                </>
               : <div className="chat-thinking">
                   <img src={chatLoadingGif} alt="" className="chat-loading-gif" />
                   <span className="chat-thinking-text">{msg.thinkingLabel || 'AI lagi mikir'}<span className="chat-thinking-dots" /></span>

@@ -18,10 +18,10 @@ html, body { height: 100%; }
   --line-2:     #E0E0E0;
 
   /* ── Accent ── */
-  --accent:       #E8542F;
-  --accent-deep:  #CF4222;
-  --accent-soft:  #FCEEE9;
-  --accent-text:  #C43E1F;
+  --accent:       #144793;
+  --accent-deep:  #0E3470;
+  --accent-soft:  #E3ECFA;
+  --accent-text:  #103A7A;
 
   /* legacy alias (dipakai komponen lama) */
   --red: var(--accent);
@@ -65,8 +65,8 @@ html, body { height: 100%; }
   --claude-bg:     #FAF9F5;
   --claude-soft:   #ECEAE2;
   --claude-line:   #E8E6DD;
-  --claude-orange: #C96442;
-  --claude-orange-deep: #B5532F;
+  --claude-orange: #144793;
+  --claude-orange-deep: #0E3470;
   --font-serif: 'Tiempos Text', Charter, Georgia, 'Times New Roman', serif;
 
   font-family: 'Inter', -apple-system, sans-serif;
@@ -118,22 +118,22 @@ body.is-dragging * { cursor: grabbing !important; }
 
 /* ════════ NIGHT THEME — ala Claude ════════ */
 html[data-theme="dark"] {
-  --app-bg:      #262624;
-  --canvas:      #262624;
-  --canvas-deep: #1F1F1D;
-  --surface:     #30302E;
-  --surface-2:   #383836;
+  --app-bg:      #0B1013;
+  --canvas:      #0B1013;
+  --canvas-deep: #070C0F;
+  --surface:     #0B1013;
+  --surface-2:   #0F1518;
   --ink:         #F0EEE6;
   --ink-2:       #C9C6BA;
   --ink-3:       #9B988A;
   --ink-4:       #6E6B5E;
-  --line:        #3E3D38;
-  --line-2:      #4A4943;
+  --line:        #2F3336;
+  --line-2:      #2F3336;
 
-  --claude-bg:     #30302E;
-  --claude-soft:   #3E3C36;
-  --claude-line:   #44423A;
-  --accent-soft:   #4A2E22;
+  --claude-bg:     #0B1013;
+  --claude-soft:   #2F3336;
+  --claude-line:   #2F3336;
+  --accent-soft:   #1A2A45;
 
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2);
   --shadow-md: 0 2px 4px rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.35);
@@ -144,3 +144,22 @@ html[data-theme="dark"] {
   color-scheme: dark;
 }
 html[data-theme="dark"] body { background: var(--canvas); }
+
+/* ── Board background (set by ProfilePage) ── */
+html[data-board-bg] .board-frame {
+  background: var(--board-bg) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* ── Column & card override (set by ProfilePage) ── */
+html[data-custom-col] .column {
+  background: var(--custom-col-bg) !important;
+  box-shadow: none !important;
+}
+html[data-custom-col] .card { background: var(--custom-card-bg) !important; }
+html[data-custom-col="dark"] .column-title,
+html[data-custom-col="dark"] .column-count,
+html[data-custom-col="dark"] .card-title,
+html[data-custom-col="dark"] .card-desc,
+html[data-custom-col="dark"] .card-sub { color: #F0EEE6 !important; }

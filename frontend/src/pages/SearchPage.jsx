@@ -1,7 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { SlotText } from 'slot-text/react'
-import { chromatic } from 'slot-text'
-import 'slot-text/style.css'
 import { ChatPanel } from '../components/ChatPanel'
 import { apiUrl } from '../lib/api'
 import logo from '../assets/logo.png'
@@ -25,33 +22,14 @@ function buildGreetings(name) {
   ]
 }
 
-// light inner-letter shuffle so each char visibly rolls into place on mount
-function scramble(s) {
-  return s.replace(/\S+/g, w => {
-    if (w.length < 4) return w
-    const mid = w.slice(1, -1).split('')
-    for (let i = mid.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[mid[i], mid[j]] = [mid[j], mid[i]]
-    }
-    return w[0] + mid.join('') + w[w.length - 1]
-  })
-}
-
 function HeroGreeting({ name }) {
   const target = useMemo(() => {
     const pool = buildGreetings(name)
     return pool[Math.floor(Math.random() * pool.length)]
   }, [name])
-  const [txt, setTxt] = useState(() => scramble(target))
-  useEffect(() => {
-    const t = setTimeout(() => setTxt(target), 180)
-    return () => clearTimeout(t)
-  }, [target])
   return (
     <h1 className="search-hero-heading">
-      <img src={logo} alt="" className="search-hero-inline-logo" />
-      <SlotText text={txt} options={{ direction: 'up', color: chromatic({ from: 20 }), skipUnchanged: false }} />
+      {target}
     </h1>
   )
 }
@@ -77,7 +55,7 @@ const CHIPS = [
   { icon: '📊', label: 'Laporan absen' },
 ]
 
-export function SearchPage({ userName = 'Anesh', newChatKey = 0 }) {
+export function SearchPage({ userName = 'Anesh', newChatKey = 0, getBoardSummary, getAppContext, onToolCall }) {
   const [conversations, setConversations] = useState(() => loadChats().conversations || [])
   const [activeId, setActiveId] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -146,7 +124,7 @@ export function SearchPage({ userName = 'Anesh', newChatKey = 0 }) {
           model: 'claude-haiku-4-5',
           user_id: 'search',
           chat_history: history.slice(-20),
-          board_data: {},
+          board_data: getBoardSummary ? { columns: getBoardSummary(), app: getAppContext ? getAppContext() : undefined } : {},
         }),
       })
 
@@ -170,7 +148,9 @@ export function SearchPage({ userName = 'Anesh', newChatKey = 0 }) {
           if (!raw) continue
           try {
             const event = JSON.parse(raw)
-            if (event.type === 'token') {
+            if (event.type === 'tool' && onToolCall) {
+              if (event.result?.action) onToolCall({ tool: event.result.action, ...event.result })
+            } else if (event.type === 'token') {
               fullText += event.token
               setConversations(prev => prev.map(c =>
                 c.id === convId

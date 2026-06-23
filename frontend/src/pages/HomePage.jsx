@@ -1,8 +1,37 @@
 import { useState, useEffect, useMemo } from 'react'
-import { fmtDuration } from '../hooks/useAttendance'
+import ChartLineIcon from '../components/icons/ChartLineIcon'
+import FilledBellIcon from '../components/icons/FilledBellIcon'
+import UnorderedListIcon from '../components/icons/UnorderedListIcon'
+import Dither from '../components/Dither'
+import { fmtDuration, durationMs } from '../hooks/useAttendance'
 import { relTime } from '../hooks/useActivity'
 import NumberFlow from '../components/NumberFlow-standalone'
-import { AreaChart, Donut, ActivityRings, Sparkline, Gauge } from '../components/HomeCharts'
+import { AreaChart, Donut, ActivityRings, Sparkline, Gauge, BarChart } from '../components/HomeCharts'
+
+const IconChartLine = () => (
+  <svg className="icon-anim" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <polyline points="3 12 9 6 15 12 21 6"></polyline>
+    <polyline points="3 20 9 14 15 20 21 14"></polyline>
+  </svg>
+)
+
+const IconBell = () => (
+  <svg className="icon-anim" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+)
+
+const IconList = () => (
+  <svg className="icon-anim" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <line x1="8" y1="6" x2="21" y2="6"></line>
+    <line x1="8" y1="12" x2="21" y2="12"></line>
+    <line x1="8" y1="18" x2="21" y2="18"></line>
+    <line x1="3" y1="6" x2="3.01" y2="6"></line>
+    <line x1="3" y1="12" x2="3.01" y2="12"></line>
+    <line x1="3" y1="18" x2="3.01" y2="18"></line>
+  </svg>
+)
 
 function greeting(d = new Date()) {
   const h = d.getHours()
@@ -101,10 +130,27 @@ function Heatmap({ counts, total }) {
 }
 
 /* ── Home ─────────────────────────────────────────────────────── */
-export function HomePage({ boards, board, attendance, team, activity, userName = 'Anesh', onNavigate, onOpenChat }) {
+function fmtTime(ts) {
+  if (!ts) return '—'
+  return new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+}
+function fmtDate(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })
+}
+function dayKey(d) { return d.toISOString().slice(0, 10) }
+
+const HOME_TABS = [
+  { id: 'ringkasan', label: 'Ringkasan', icon: ChartLineIcon },
+  { id: 'absen', label: 'Absen', icon: FilledBellIcon },
+  { id: 'aktivitas', label: 'Aktivitas', icon: UnorderedListIcon },
+]
+
+export function HomePage({ boards, board, attendance, team, activity, userName = 'Anesh', onNavigate, onOpenChat, onLog }) {
   const [now, setNow] = useState(new Date())
+  const [tab, setTab] = useState('ringkasan')
+  const [, tick] = useState(0)
   useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000)
+    const t = setInterval(() => { setNow(new Date()); tick(n => n + 1) }, 1000)
     return () => clearInterval(t)
   }, [])
 
@@ -148,7 +194,7 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
   })).filter(s => s.value > 0)
 
   const rings = [
-    { value: pct / 100, color: '#C96442', track: 'rgba(201,100,66,.15)' },
+    { value: pct / 100, color: '#144793', track: 'rgba(20,71,147,.15)' },
     { value: Math.min(1, attendance.daysPresent / 22), color: '#6B8E7F', track: 'rgba(107,142,127,.15)' },
     { value: Math.min(1, attendance.streak / 7), color: '#D9A04E', track: 'rgba(217,160,78,.15)' },
   ]
@@ -157,10 +203,36 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
   const timeStr = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   const dateStr = now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
+  // absen data
+  const { records, isClockedIn, clockIn, clockOut, deleteRecord, monthMs, daysPresent, streak } = attendance
+  const openRec = records.find(r => !r.out)
+  const liveMs = openRec ? durationMs(openRec) : 0
+  const lh = String(Math.floor(liveMs / 3600000)).padStart(2, '0')
+  const lm = String(Math.floor((liveMs % 3600000) / 60000)).padStart(2, '0')
+  const ls = String(Math.floor((liveMs % 60000) / 1000)).padStart(2, '0')
+  const weekly = useMemo(() => {
+    const byDay = {}
+    for (const r of records) byDay[r.date] = (byDay[r.date] || 0) + durationMs(r)
+    const data = [], labels = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i)
+      data.push(Math.round(((byDay[dayKey(d)] || 0) / 3600000) * 10) / 10)
+      labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }))
+    }
+    return { data, labels }
+  }, [records])
+  const weekTotalH = Math.round(weekly.data.reduce((a, b) => a + b, 0) * 10) / 10
+  const absenHistory = [...records].reverse().slice(0, 10)
+
+  function handleClock() {
+    if (isClockedIn) { clockOut(); onLog?.('absen', 'Clock out — sesi kerja selesai') }
+    else { clockIn(); onLog?.('absen', 'Clock in — mulai kerja') }
+  }
+
   const stats = [
     { label: 'Total task', value: allCards.length, sub: `${boards.length} board aktif`, accent: '#C96442' },
     { label: 'Selesai', value: doneCards.length, sub: `${allCards.length - doneCards.length} tersisa`, accent: '#6B8E7F' },
-    { label: 'Jam kerja bulan ini', value: fmtDuration(attendance.monthMs), raw: true, sub: `${attendance.daysPresent} hari · streak ${attendance.streak} 🔥`, accent: '#D9A04E' },
+    { label: 'Jam kerja bulan ini', value: fmtDuration(attendance.monthMs), raw: true, sub: `${attendance.daysPresent} hari`, accent: '#D9A04E' },
   ]
 
   return (
@@ -169,35 +241,56 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
 
         {/* ── Hero ── */}
         <section className="hero2 anim-in">
+          <div className="hero2-dither">
+            <Dither
+              waveColor={[0.35, 0.55, 0.85]}
+              waveSpeed={0.03}
+              waveFrequency={2.5}
+              waveAmplitude={0.28}
+              colorNum={5}
+              pixelSize={2}
+              disableAnimation={false}
+              enableMouseInteraction={true}
+              mouseRadius={0.6}
+            />
+          </div>
           <div className="hero2-aurora" />
           <div className="hero2-grid-bg" />
           <div className="hero2-inner">
             <div className="hero2-left">
-              <div className="hero2-eyebrow">
-                <span className="live-dot" /> {dateStr}
-              </div>
               <h1 className="hero2-title">
-                <svg className="home-star" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  {Array.from({ length: 11 }).map((_, i) => {
-                    const a = ((i * 360) / 11 - 90) * Math.PI / 180
-                    return <line key={i} x1={12 + Math.cos(a) * 2.4} y1={12 + Math.sin(a) * 2.4} x2={12 + Math.cos(a) * 9.4} y2={12 + Math.sin(a) * 9.4} stroke="#D97757" strokeWidth="2.4" strokeLinecap="round" />
-                  })}
-                </svg>
                 {greeting(now)}, {userName.split(' ')[0]}
               </h1>
               <p className="hero2-sub">{pct >= 100 ? 'Semua task kelar 🎉' : `Lo udah nyelesain ${doneCards.length} dari ${allCards.length} task — terus gas.`}</p>
               <div className="hero2-actions">
                 <button className="hero2-btn primary" onClick={onOpenChat}><span>✦</span> Tanya AI</button>
-                <button className="hero2-btn" onClick={() => onNavigate('board')}>Buka board →</button>
               </div>
             </div>
             <div className="hero2-clock">
               <NumberFlow value={timeStr} />
-              <span className="hero2-clock-label">waktu lokal</span>
+              <span className="hero2-clock-label">{dateStr}</span>
             </div>
           </div>
         </section>
 
+        {/* ── Tab bar ── */}
+        <div className="home-tabs">
+          {HOME_TABS.map(t => (
+            <button
+              key={t.id}
+              className={`home-tab ${tab === t.id ? 'active' : ''}`}
+              onClick={() => setTab(t.id)}
+            >
+              <span className="home-tab-icon"><t.icon size={16} /></span>
+              {t.label}
+              {tab === t.id && <span className="home-tab-underline" />}
+            </button>
+          ))}
+        </div>
+
+        {/* ════════ TAB: RINGKASAN ════════ */}
+        {tab === 'ringkasan' && (
+        <div className="home-tab-panel" key="ringkasan">
         {/* ── Stat row with sparklines ── */}
         <div className="stat2-row">
           {stats.map((s, i) => (
@@ -216,44 +309,22 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
             </div>
           ))}
           <div className="stat2-card stat2-ring anim-in" style={{ animationDelay: '240ms' }}>
-            <div>
+            <div className="stat2-head">
               <span className="stat2-label">Progress board</span>
-              <div className="stat2-value" style={{ fontSize: 22 }}><NumberFlow value={pct} />%</div>
+            </div>
+            <div className="stat2-ring-body">
+              <div className="stat2-value"><NumberFlow value={pct} />%</div>
+              <Gauge value={pct} size={54} />
+            </div>
+            <div className="stat2-foot">
               <span className="stat2-sub">{doneCards.length}/{allCards.length} done</span>
             </div>
-            <Gauge value={pct} size={66} />
           </div>
         </div>
 
-        {/* ── Trend + Rings ── */}
-        <div className="home2-split">
-          <section className="home-card span-2 anim-in" style={{ animationDelay: '160ms' }}>
-            <div className="card-head">
-              <h3 className="card-title"><span className="title-dot" /> Tren aktivitas 14 hari</h3>
-              <span className="card-meta">{trend.data.reduce((a, b) => a + b, 0)} total</span>
-            </div>
-            <AreaChart data={trend.data} labels={trend.labels} />
-          </section>
-
-          <section className="home-card anim-in" style={{ animationDelay: '220ms' }}>
-            <h3 className="card-title"><span className="title-dot" /> Ringkasan</h3>
-            <div className="rings-block">
-              <ActivityRings rings={rings} size={150} />
-              <ul className="rings-legend">
-                <li><span className="lg-dot" style={{ background: '#C96442' }} /> Progress <b>{pct}%</b></li>
-                <li><span className="lg-dot" style={{ background: '#6B8E7F' }} /> Kehadiran <b>{attendance.daysPresent} hari</b></li>
-                <li><span className="lg-dot" style={{ background: '#D9A04E' }} /> Streak <b>{attendance.streak} 🔥</b></li>
-              </ul>
-            </div>
-          </section>
-        </div>
-
-        {/* ── Heatmap ── */}
-        <Heatmap counts={heatCounts} total={heatTotal} />
-
-        {/* ── Distribution + Deadline + AI + Activity ── */}
-        <div className="home2-bottom">
-          <section className="home-card area-dist anim-in" style={{ animationDelay: '300ms' }}>
+        {/* ── Distribusi + Deadline ── */}
+        <div className="home2-duo">
+          <section className="home-card anim-in" style={{ animationDelay: '300ms' }}>
             <h3 className="card-title"><span className="title-dot" /> Distribusi board</h3>
             {donutSegments.length === 0
               ? <p className="card-empty">Belum ada task</p>
@@ -271,10 +342,9 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
                   </ul>
                 </div>
               )}
-            <button className="card-link" onClick={() => onNavigate('board')}>Buka board →</button>
           </section>
 
-          <section className="home-card area-deadline anim-in" style={{ animationDelay: '360ms' }}>
+          <section className="home-card anim-in" style={{ animationDelay: '360ms' }}>
             <h3 className="card-title"><span className="title-dot" /> Deadline terdekat</h3>
             {dueCards.length === 0
               ? <p className="card-empty">Nggak ada deadline aktif 🎉</p>
@@ -289,28 +359,113 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
                   ))}
                 </ul>
               )}
-            <button className="card-link" onClick={() => onNavigate('board')}>Buka board →</button>
+          </section>
+        </div>
+        </div>
+        )}
+
+        {/* ════════ TAB: ABSEN ════════ */}
+        {tab === 'absen' && (
+        <div className="home-tab-panel" key="absen">
+        <div className="home2-absen">
+          <section className={`home-card absen-clock-card ${isClockedIn ? 'working' : ''} anim-in`}>
+            <div className="absen-clock-inner">
+              <div className="absen-clock-left">
+                <div className="absen-status">
+                  <span className={`absen-status-dot ${isClockedIn ? 'on' : ''}`} />
+                  {isClockedIn ? 'Sedang bekerja' : 'Belum clock in'}
+                </div>
+                <div className="absen-timer">{lh}:{lm}:{ls}</div>
+                <div className="absen-since">
+                  {openRec ? `mulai jam ${fmtTime(openRec.in)}` : 'Clock in pas mulai kerja, out pas selesai.'}
+                </div>
+                <button className={`absen-btn ${isClockedIn ? 'out' : 'in'}`} onClick={handleClock}>
+                  {isClockedIn ? '■ Clock Out' : '▶ Clock In'}
+                </button>
+              </div>
+              <div className="absen-clock-stats">
+                <div className="absen-mini-stat">
+                  <span className="absen-mini-label">Bulan ini</span>
+                  <span className="absen-mini-val">{fmtDuration(monthMs)}</span>
+                </div>
+                <div className="absen-mini-stat">
+                  <span className="absen-mini-label">Hari hadir</span>
+                  <span className="absen-mini-val">{daysPresent} hari</span>
+                </div>
+                <div className="absen-mini-stat">
+                  <span className="absen-mini-label">Streak</span>
+                  <span className="absen-mini-val">{streak} 🔥</span>
+                </div>
+              </div>
+            </div>
           </section>
 
-          <section className="home-card ai-card area-ai anim-in" style={{ animationDelay: '420ms' }}>
-            <div className="ai-card-glow" />
-            <div className="ai-card-inner">
-              <div className="ai-badge">✦ AI Assistant</div>
-              <p className="ai-card-text">Tanya apa aja soal board, task, atau absen lo — gue bantu rangkum dan kasih insight.</p>
-              <button className="ai-card-btn" onClick={onOpenChat}>Mulai chat →</button>
+          <section className="home-card anim-in" style={{ animationDelay: '80ms' }}>
+            <div className="card-head">
+              <h3 className="card-title"><span className="title-dot" /> Jam kerja 7 hari</h3>
+              <span className="card-meta">{weekTotalH}j total</span>
             </div>
-            <div className="ai-team-row">
-              {team.members.map(m => (
-                <span key={m.id} className="mini-avatar2" style={{ background: m.color }} title={`${m.name} — ${m.role}`}>
-                  {m.name[0].toUpperCase()}
-                </span>
-              ))}
-              <span className="ai-team-label">{team.members.length} anggota tim</span>
-            </div>
+            <BarChart data={weekly.data} labels={weekly.labels} fmt={(v) => `${v}j`} />
           </section>
 
-          {/* ── Activity feed ── */}
-          <section className="home-card area-activity anim-in" style={{ animationDelay: '480ms' }}>
+          <section className="home-card anim-in" style={{ animationDelay: '140ms' }}>
+            <h3 className="card-title"><span className="title-dot" /> Riwayat absen</h3>
+            {absenHistory.length === 0
+              ? <p className="card-empty">Belum ada riwayat. Clock in pertama lo bakal muncul di sini.</p>
+              : (
+                <div className="absen-timeline">
+                  {absenHistory.map((r, i) => (
+                    <div key={r.id} className="absen-row anim-in" style={{ animationDelay: `${i * 30}ms` }}>
+                      <div className="absen-row-date">
+                        <span className="absen-row-day">{fmtDate(r.date)}</span>
+                      </div>
+                      <div className="absen-row-times">
+                        <span className="absen-chip in">↓ {fmtTime(r.in)}</span>
+                        <span className="absen-arrow">→</span>
+                        {r.out ? <span className="absen-chip out">↑ {fmtTime(r.out)}</span> : <span className="absen-chip live">● live</span>}
+                      </div>
+                      <span className="absen-row-dur">{fmtDuration(durationMs(r))}</span>
+                      <button className="absen-row-del" title="Hapus" onClick={() => deleteRecord(r.id)}>×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+          </section>
+        </div>
+        </div>
+        )}
+
+        {/* ════════ TAB: AKTIVITAS ════════ */}
+        {tab === 'aktivitas' && (
+        <div className="home-tab-panel" key="aktivitas">
+        {/* ── Trend + Rings ── */}
+        <div className="home2-split">
+          <section className="home-card span-2 anim-in" style={{ animationDelay: '60ms' }}>
+            <div className="card-head">
+              <h3 className="card-title"><span className="title-dot" /> Tren aktivitas 14 hari</h3>
+              <span className="card-meta">{trend.data.reduce((a, b) => a + b, 0)} total</span>
+            </div>
+            <AreaChart data={trend.data} labels={trend.labels} />
+          </section>
+
+          <section className="home-card anim-in" style={{ animationDelay: '120ms' }}>
+            <h3 className="card-title"><span className="title-dot" /> Ringkasan</h3>
+            <div className="rings-block">
+              <ActivityRings rings={rings} size={150} />
+              <ul className="rings-legend">
+                <li><span className="lg-dot" style={{ background: '#C96442' }} /> Progress <b>{pct}%</b></li>
+                <li><span className="lg-dot" style={{ background: '#6B8E7F' }} /> Kehadiran <b>{attendance.daysPresent} hari</b></li>
+                <li><span className="lg-dot" style={{ background: '#D9A04E' }} /> Streak <b>{attendance.streak} 🔥</b></li>
+              </ul>
+            </div>
+          </section>
+        </div>
+
+        {/* ── Heatmap ── */}
+        <Heatmap counts={heatCounts} total={heatTotal} />
+
+        {/* ── Activity feed ── */}
+        <section className="home-card anim-in" style={{ animationDelay: '180ms' }}>
           <div className="card-head">
             <h3 className="card-title" style={{ marginBottom: 0 }}><span className="title-dot" /> Aktivitas terbaru</h3>
             {activity.entries.length > 0 && (
@@ -334,8 +489,9 @@ export function HomePage({ boards, board, attendance, team, activity, userName =
               ))}
             </div>
           )}
-          </section>
+        </section>
         </div>
+        )}
 
       </div>
     </div>

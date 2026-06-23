@@ -20,8 +20,8 @@ export function durationMs(rec) {
 export function fmtDuration(ms) {
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
-  if (h === 0) return `${m}m`
-  return `${h}j ${m}m`
+  if (h === 0) return `${m} menit`
+  return `${h} jam`
 }
 
 export function useAttendance() {

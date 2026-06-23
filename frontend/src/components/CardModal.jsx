@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { dueStatus, STATUS_COLOR, STATUS_LABEL, fmtDueRange, fmtDT } from '../lib/due'
 import { dominantColor } from '../lib/dominantColor'
 import { uploadFile } from '../lib/api'
@@ -12,7 +13,13 @@ function genImgId() {
 /* legacy markdown → HTML sederhana (untuk deskripsi lama yang masih plain text) */
 function legacyToHtml(text) {
   if (!text) return ''
-  if (/<[a-z][\s\S]*>/i.test(text)) return text // udah HTML
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    // sudah HTML — tetap proses inline markdown di dalamnya
+    return text
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+  }
   return text.split('\n').map(line => {
     if (!line.trim()) return '<p><br></p>'
     let html = line
@@ -119,7 +126,8 @@ function DatePicker({ card, onApply, onClose }) {
     onClose()
   }
 
-  return (
+  return createPortal(
+    <div className="datepicker-backdrop" onClick={onClose}>
     <div className="datepicker tm-pop dp-horizontal" onClick={e => e.stopPropagation()}>
       <div className="datepicker-head">
         <span className="datepicker-title">Dates</span>
@@ -190,6 +198,8 @@ function DatePicker({ card, onApply, onClose }) {
         </div>
       </div>
     </div>
+    </div>,
+    document.body
   )
 }
 

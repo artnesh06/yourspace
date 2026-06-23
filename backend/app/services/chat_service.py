@@ -540,6 +540,26 @@ async def execute_tool(tool_name: str, tool_input: dict, board_data: dict) -> di
         }
     elif tool_name == "get_board_status":
         return {"action": "get_board_status", "board": board_data, "success": True}
+    elif tool_name == "duplicate_card":
+        return {"action": "duplicate_card", "cardId": tool_input.get("cardId"), "success": True}
+    elif tool_name == "add_comment":
+        return {"action": "add_comment", "cardId": tool_input.get("cardId"), "text": tool_input.get("text", ""), "success": True}
+    elif tool_name == "add_checklist_item":
+        return {"action": "add_checklist_item", "cardId": tool_input.get("cardId"), "text": tool_input.get("text", ""), "success": True}
+    elif tool_name == "toggle_checklist_item":
+        return {"action": "toggle_checklist_item", "cardId": tool_input.get("cardId"), "text": tool_input.get("text", ""), "success": True}
+    elif tool_name == "add_column":
+        return {"action": "add_column", "title": tool_input.get("title", ""), "success": True}
+    elif tool_name == "rename_column":
+        return {"action": "rename_column", "columnId": tool_input.get("columnId"), "title": tool_input.get("title", ""), "success": True}
+    elif tool_name == "delete_column":
+        return {"action": "delete_column", "columnId": tool_input.get("columnId"), "success": True}
+    elif tool_name == "navigate_page":
+        return {"action": "navigate_page", "page": tool_input.get("page", ""), "success": True}
+    elif tool_name == "clock_in":
+        return {"action": "clock_in", "success": True}
+    elif tool_name == "clock_out":
+        return {"action": "clock_out", "success": True}
     else:
         return {"success": False, "error": f"Unknown tool: {tool_name}"}
 

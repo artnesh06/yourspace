@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react'
 import Logo from '../components/Logo'
 import GlareHover from '../components/GlareHover'
-import { SlotText } from 'slot-text/react'
-import { chromatic } from 'slot-text'
-import 'slot-text/style.css'
 
 export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
@@ -13,13 +10,6 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
-  // start from a scramble so each char visibly rolls into place on mount
-  const [heroText, setHeroText] = useState('Yuor Sapce')
-
-  useEffect(() => {
-    const t = setTimeout(() => setHeroText('Your Space'), 160)
-    return () => clearTimeout(t)
-  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -77,12 +67,9 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
 
 <main className="auth-main">
         <section className="auth-hero">
-          <Logo className="auth-hero-logo" />
-          <h1>
-            <SlotText
-              text={heroText}
-              options={{ direction: 'up', color: chromatic({ from: 190 }), skipUnchanged: false }}
-            />
+          <h1 className="auth-hero-title">
+            <Logo className="auth-hero-logo" />
+            Yourspace
           </h1>
           <p>{text.subtitle}</p>
         </section>
@@ -151,17 +138,7 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
             style={{ marginTop: '12px' }}
           >
             <button type="submit" className="auth-submit" disabled={busy} style={{ background: 'transparent', border: 'none', margin: 0, width: '100%', height: '100%' }}>
-              <SlotText
-                text={busy ? 'Sebentar…' : mode === 'login' ? 'Masuk →' : 'Bikin akun →'}
-                options={{
-                  direction: 'up',
-                  duration: 120,
-                  bounce: 0.2,
-                  easing: 'cubic-bezier(0.3, 0, 0, 1)',
-                  color: chromatic({ from: 190 }),
-                  skipUnchanged: true,
-                }}
-              />
+              {busy ? 'Sebentar…' : mode === 'login' ? 'Masuk →' : 'Bikin akun →'}
             </button>
           </GlareHover>
         </form>

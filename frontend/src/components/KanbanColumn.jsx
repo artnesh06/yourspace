@@ -6,12 +6,20 @@ import { KanbanCard } from './KanbanCard'
 
 export function KanbanColumn({
   column, allColumns, onAddCard, onDeleteCard, onDeleteColumn,
-  onMoveCard, onDuplicateCard, onCardClick, isDragOverlay,
+  onMoveCard, onDuplicateCard, onCardClick, isDragOverlay, onRenameColumn,
 }) {
   const [adding, setAdding]   = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newDue, setNewDue]   = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const [titleDraft, setTitleDraft] = useState(column.title)
+
+  function commitRename() {
+    const t = titleDraft.trim()
+    if (t && t !== column.title) onRenameColumn?.(column.id, t)
+    setEditingTitle(false)
+  }
 
   // Column is sortable itself
   const {
@@ -65,7 +73,18 @@ export function KanbanColumn({
               <circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/>
             </svg>
           </div>
-          <span className="column-title">{column.title}</span>
+          {editingTitle
+            ? <input
+                className="column-title-input"
+                value={titleDraft}
+                autoFocus
+                onChange={e => setTitleDraft(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') { setTitleDraft(column.title); setEditingTitle(false) } }}
+                onPointerDown={e => e.stopPropagation()}
+              />
+            : <span className="column-title" onClick={e => { e.stopPropagation(); setTitleDraft(column.title); setEditingTitle(true) }}>{column.title}</span>
+          }
           <span className="column-count">{column.cards.length}</span>
           <div style={{ position: 'relative' }}>
             <button

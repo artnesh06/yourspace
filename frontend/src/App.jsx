@@ -23,7 +23,11 @@ import { dueStatus, fmtDueShort } from './lib/due'
 import { HomePage } from './pages/HomePage'
 import { SearchPage } from './pages/SearchPage'
 import { ClockPage } from './pages/ClockPage'
+import { ProfilePage } from './pages/ProfilePage'
 import Logo from './components/Logo'
+import HomeIcon from './components/icons/HomeIcon'
+import MagnifierIcon from './components/icons/MagnifierIcon'
+import LibraryIcon from './components/icons/LibraryIcon'
 import initialLoadingGif from './assets/initial-loading.gif'
 import './App.css'
 
@@ -335,7 +339,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
   }
 
   const PAGE_TITLES = {
-    home: 'Home', search: 'Search', board: 'Board', absen: 'Absensi', activity: 'Aktivitas',
+    home: 'Home', search: 'Search', board: 'Board', absen: 'Absensi', activity: 'Aktivitas', profile: 'Profile',
   }
 
   return (
@@ -348,25 +352,13 @@ function Workspace({ user, onLogout, theme, setTheme }) {
         </div>
         <div className="sb-icons-top">
           <SidebarIcon title="Home" active={page === 'home'} onClick={() => setPage('home')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
+            <HomeIcon size={20} strokeWidth={1.5} />
           </SidebarIcon>
           <SidebarIcon title="Search" active={page === 'search'} onClick={() => { setPage('search'); setSearchNewKey(k => k + 1) }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
+            <MagnifierIcon size={20} />
           </SidebarIcon>
           <SidebarIcon title="Board" active={page === 'board'} onClick={() => setPage('board')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-              <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-            </svg>
-          </SidebarIcon>
-          <SidebarIcon title="Absensi" active={page === 'absen'} onClick={() => setPage('absen')}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
+            <LibraryIcon size={20} />
           </SidebarIcon>
         </div>
         <div className="sb-icons-bottom">
@@ -389,6 +381,12 @@ function Workspace({ user, onLogout, theme, setTheme }) {
                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
               </svg>
             )}
+          </SidebarIcon>
+          <SidebarIcon title="Profile" active={page === 'profile'} onClick={() => setPage('profile')}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
           </SidebarIcon>
           <button
             className="sb-avatar"
@@ -436,8 +434,6 @@ function Workspace({ user, onLogout, theme, setTheme }) {
                 <button className="tab-add-btn" onClick={() => setAddingTab(true)} title="Add board">+</button>
               )}
             </div>
-          ) : page !== 'search' ? (
-            <div className="topbar-pagetitle">{PAGE_TITLES[page]}</div>
           ) : null}
 
           <div className="topbar-spacer" />
@@ -468,12 +464,11 @@ function Workspace({ user, onLogout, theme, setTheme }) {
             </>
           )}
 
-          {page !== 'search' && (
+          {page === 'board' && (
             <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
               </svg>
-              AI Chat
             </button>
           )}
         </header>
@@ -495,14 +490,18 @@ function Workspace({ user, onLogout, theme, setTheme }) {
         {page === 'home' && (
           <HomePage
             boards={boards} board={board} attendance={attendance} team={team} activity={activity}
-            userName={user.name} onNavigate={setPage} onOpenChat={() => setChatOpen(true)}
+            userName={user.name} onNavigate={setPage} onOpenChat={() => setChatOpen(v => !v)} onLog={log}
           />
         )}
         {page === 'search'   && <SearchPage
           userName={user.name}
           newChatKey={searchNewKey}
+          getBoardSummary={getBoardSummary}
+          getAppContext={getAppContext}
+          onToolCall={handleToolCall}
         />}
         {page === 'absen'    && <ClockPage attendance={attendance} onLog={log} />}
+        {page === 'profile'  && <ProfilePage user={user} theme={theme} setTheme={setTheme} />}
 
         {page === 'board' && (
           <div className="board-frame-wrap">

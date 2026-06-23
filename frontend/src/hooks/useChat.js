@@ -42,6 +42,8 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
   const [model, setModel]       = useState(stored?.model || 'claude-haiku-4-5')
   const historyRef              = useRef(stored?.history || [])
   const abortRef                = useRef(null)
+  const onToolCallRef           = useRef(onToolCall)
+  useEffect(() => { onToolCallRef.current = onToolCall }, [onToolCall])
 
   // Persist chat (skip streaming placeholders, cap size)
   useEffect(() => {
@@ -121,7 +123,7 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
             } else if (event.type === 'tool') {
               // Apply board mutations live as the agent works
               if (event.result?.action) {
-                onToolCall({ tool: event.result.action, ...event.result })
+                onToolCallRef.current?.({ tool: event.result.action, ...event.result })
               }
               setMessages(prev => prev.map(m =>
                 m.id === assistantId
@@ -166,7 +168,7 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
       setLoading(false)
       abortRef.current = null
     }
-  }, [loading, model, getBoardSummary, getAppContext, onToolCall])
+  }, [loading, model, getBoardSummary, getAppContext])
 
   const stopStream = useCallback(() => {
     abortRef.current?.abort()
