@@ -17,6 +17,10 @@ R2_ACCESS_KEY = os.getenv('R2_ACCESS_KEY')
 R2_SECRET_KEY = os.getenv('R2_SECRET_KEY')
 R2_ENDPOINT = os.getenv('R2_ENDPOINT')
 R2_BUCKET = os.getenv('R2_BUCKET', 'yourspace')
+# Public base URL for the bucket (R2.dev subdomain or custom domain).
+# When set, uploads return a permanent public URL instead of a 24h
+# presigned URL. e.g. https://pub-xxxx.r2.dev
+R2_PUBLIC_URL = (os.getenv('R2_PUBLIC_URL') or '').rstrip('/')
 
 # Initialize S3 client for R2
 s3_client = boto3.client(
@@ -53,11 +57,16 @@ async def upload_file(file: UploadFile, user: dict = Depends(get_current_user)):
                 Body=content,
                 ContentType=file.content_type or "application/octet-stream"
             )
-            url = s3_client.generate_presigned_url(
-                'get_object',
-                Params={'Bucket': R2_BUCKET, 'Key': name},
-                ExpiresIn=86400  # 24 hours
-            )
+            if R2_PUBLIC_URL:
+                # permanent public URL — never expires
+                url = f"{R2_PUBLIC_URL}/{name}"
+            else:
+                # fallback: temporary presigned URL (expires in 24h)
+                url = s3_client.generate_presigned_url(
+                    'get_object',
+                    Params={'Bucket': R2_BUCKET, 'Key': name},
+                    ExpiresIn=86400  # 24 hours
+                )
         except ClientError as e:
             raise HTTPException(500, f"Upload gagal: {str(e)}")
     else:
