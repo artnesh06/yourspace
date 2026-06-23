@@ -25,6 +25,7 @@ import { SearchPage } from './pages/SearchPage'
 import { ClockPage } from './pages/ClockPage'
 import { ProfilePage } from './pages/ProfilePage'
 import Logo from './components/Logo'
+import { ShareModal } from './components/ShareModal'
 import HomeIcon from './components/icons/HomeIcon'
 import MagnifierIcon from './components/icons/MagnifierIcon'
 import LibraryIcon from './components/icons/LibraryIcon'
@@ -85,6 +86,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
   const [addingTab, setAddingTab]       = useState(false)
   const [newTabName, setNewTabName]     = useState('')
   const [searchNewKey, setSearchNewKey] = useState(0)
+  const [shareOpen, setShareOpen]       = useState(false)
 
   const {
     board, boards, activeId,
@@ -465,11 +467,20 @@ function Workspace({ user, onLogout, theme, setTheme }) {
           )}
 
           {page === 'board' && (
-            <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-              </svg>
-            </button>
+            <>
+              <button className="topbar-btn" onClick={() => setShareOpen(true)} title="Share board">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                </svg>
+                Share
+              </button>
+              <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+              </button>
+            </>
           )}
         </header>
 
@@ -582,6 +593,10 @@ function Workspace({ user, onLogout, theme, setTheme }) {
           onAddComment={addComment} onDeleteComment={deleteComment}
           onMove={moveCardLogged} onDuplicate={duplicateCard}
         />
+      )}
+
+      {shareOpen && (
+        <ShareModal boardId={activeId} onClose={() => setShareOpen(false)} />
       )}
     </div>
   )

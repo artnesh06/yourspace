@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import init_db
-from app.routes import chat, board, auth, state, upload
+from app.routes import chat, board, auth, state, upload, share
 
 DEFAULT_CORS_ORIGINS = [
     "https://yourspace.artnesh.cloud",
@@ -56,6 +56,7 @@ app.include_router(board.router)
 app.include_router(auth.router)
 app.include_router(state.router)
 app.include_router(upload.router)
+app.include_router(share.router)
 
 # Uploaded files (gambar attachment dll)
 _uploads_dir = Path(__file__).resolve().parent / "data" / "uploads"
