@@ -44,7 +44,7 @@ function SidebarIcon({ active, title, onClick, children }) {
 
 /* ── Root: auth gate ── */
 export default function App() {
-  const { user, checking, login, register, logout } = useAuth()
+  const { user, checking, login, register, logout, loginGoogle } = useAuth()
   const [initialLoading, setInitialLoading] = useState(true)
 
   useEffect(() => {
@@ -67,7 +67,7 @@ export default function App() {
       </div>
     )
   }
-  if (!user) return <AuthPage theme={theme} setTheme={setTheme} onLogin={login} onRegister={register} />
+  if (!user) return <AuthPage theme={theme} setTheme={setTheme} onLogin={login} onRegister={register} onGoogle={loginGoogle} />
   return <Workspace key={user.id} user={user} onLogout={logout} theme={theme} setTheme={setTheme} />
 }
 

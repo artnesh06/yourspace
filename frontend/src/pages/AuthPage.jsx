@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import Logo from '../components/Logo'
 import GlareHover from '../components/GlareHover'
 
-export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
+
+export function AuthPage({ theme, setTheme, onLogin, onRegister, onGoogle }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
   const [lang, setLang] = useState('id') // 'id' | 'en'
   const [name, setName] = useState('')
@@ -10,6 +12,53 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [googleReady, setGoogleReady] = useState(false)
+
+  // Load Google Identity Services + initialize once
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return
+    function init() {
+      if (!window.google?.accounts?.id) return
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async ({ credential }) => {
+          if (!credential) return
+          setError('')
+          setBusy(true)
+          try {
+            await onGoogle(credential)
+          } catch (err) {
+            setError(err.message || 'Login Google gagal')
+          } finally {
+            setBusy(false)
+          }
+        },
+      })
+      setGoogleReady(true)
+    }
+    if (window.google?.accounts?.id) { init(); return }
+    const existing = document.getElementById('gsi-script')
+    if (existing) { existing.addEventListener('load', init); return }
+    const s = document.createElement('script')
+    s.src = 'https://accounts.google.com/gsi/client'
+    s.async = true
+    s.defer = true
+    s.id = 'gsi-script'
+    s.onload = init
+    document.head.appendChild(s)
+  }, [onGoogle])
+
+  function handleGoogle() {
+    if (!GOOGLE_CLIENT_ID) {
+      setError(lang === 'id' ? 'Google login belum diaktifkan' : 'Google login not enabled')
+      return
+    }
+    if (!googleReady || !window.google?.accounts?.id) {
+      setError(lang === 'id' ? 'Google belum siap, coba lagi' : 'Google not ready, try again')
+      return
+    }
+    window.google.accounts.id.prompt()
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -96,7 +145,7 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister }) {
             glareAngle={-45}
             transitionDuration={600}
           >
-            <button type="button" className="auth-google-btn" style={{ background: 'transparent', border: 'none', width: '100%', height: '100%' }}>
+            <button type="button" onClick={handleGoogle} disabled={busy} className="auth-google-btn" style={{ background: 'transparent', border: 'none', width: '100%', height: '100%' }}>
               <svg className="auth-google-logo" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
                 <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>

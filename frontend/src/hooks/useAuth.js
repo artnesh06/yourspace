@@ -34,10 +34,20 @@ export function useAuth() {
     return res.user
   }, [])
 
+  const loginGoogle = useCallback(async (credential) => {
+    const res = await apiFetch('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential }),
+    })
+    setToken(res.token)
+    setUser(res.user)
+    return res.user
+  }, [])
+
   const logout = useCallback(() => {
     setToken('')
     setUser(null)
   }, [])
 
-  return { user, checking, login, register, logout }
+  return { user, checking, login, register, logout, loginGoogle }
 }

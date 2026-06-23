@@ -10,6 +10,10 @@ RUN npm ci
 COPY . .
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=
+# Google OAuth client ID (build-time — Vite inlines VITE_* at build).
+# Override in Coolify as a Build Variable / build arg.
+ARG VITE_GOOGLE_CLIENT_ID=712542486332-u45030r72t8nj53u7j6rhoher4cjkb3k.apps.googleusercontent.com
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 RUN npm run build
 
 # Production stage

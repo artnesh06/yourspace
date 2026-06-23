@@ -53,5 +53,8 @@ export async function uploadFile(file) {
   })
   if (!res.ok) throw new Error('Upload gagal')
   const data = await res.json()
-  return { ...data, url: apiUrl(data.url) }
+  // R2 public/presigned URLs are absolute — use as-is; only relative paths
+  // (e.g. /uploads/..) get the API base prepended.
+  const url = /^https?:\/\//i.test(data.url) ? data.url : apiUrl(data.url)
+  return { ...data, url }
 }
