@@ -16,6 +16,12 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Optional: custom error pages or config can be added here if needed
+# nginx template: the official entrypoint runs envsubst on ${BACKEND_URL}
+# and writes the result to /etc/nginx/conf.d/default.conf at container start
+COPY default.conf.template /etc/nginx/templates/default.conf.template
+
+# Internal hostname of the backend service. Override in Coolify env if different.
+ENV BACKEND_URL=http://backend:8000
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
