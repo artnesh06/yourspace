@@ -192,15 +192,24 @@ export function BarChart({ data = [], labels = [], height = 150, accent = 'var(-
 }
 
 /* ── Radial gauge (single value %) ────────────────────────────── */
-export function Gauge({ value = 0, size = 64, accent = 'var(--claude-orange)', label }) {
+export function Gauge({ value = 0, size = 64, accent, label }) {
   const [anim, setAnim] = useState(0)
   useEffect(() => { const t = setTimeout(() => setAnim(value), 150); return () => clearTimeout(t) }, [value])
   const r = (size - 8) / 2
   const c = 2 * Math.PI * r
+  const uid = useId()
+  // default: gradasi tema (terkunci ke --blue-grad-from / --blue-grad-to)
+  const stroke = accent ?? `url(#gauge-${uid})`
   return (
     <svg width={size} height={size} className="gauge">
+      <defs>
+        <linearGradient id={`gauge-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="var(--blue-grad-from)" />
+          <stop offset="100%" stopColor="var(--blue-grad-to)" />
+        </linearGradient>
+      </defs>
       <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--claude-soft)" strokeWidth="7" />
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={accent} strokeWidth="7" strokeLinecap="round"
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={stroke} strokeWidth="7" strokeLinecap="round"
         strokeDasharray={c} strokeDashoffset={c * (1 - anim / 100)}
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
         style={{ transition: 'stroke-dashoffset 1.1s cubic-bezier(.32,.72,.32,1)' }} />

@@ -11,14 +11,14 @@ const APP_THEMES = [
 // ── Board background ──
 const BOARD_BGS = [
   { id: 'default',  label: 'Default',  bg: null },
-  { id: 'blue',     label: 'Ocean',    bg: 'linear-gradient(315deg, #4a8de8 0%, #144793 80%)' },
-  { id: 'navy',     label: 'Navy',     bg: 'linear-gradient(315deg, #2e3f72 0%, #0d1428 80%)' },
-  { id: 'purple',   label: 'Purple',   bg: 'linear-gradient(315deg, #a166f7 0%, #4c1d95 80%)' },
-  { id: 'teal',     label: 'Teal',     bg: 'linear-gradient(315deg, #2dd4bf 0%, #0f766e 80%)' },
-  { id: 'sunset',   label: 'Sunset',   bg: 'linear-gradient(315deg, #fb923c 0%, #db2777 80%)' },
-  { id: 'rose',     label: 'Rose',     bg: 'linear-gradient(315deg, #fda4af 0%, #e11d48 80%)' },
-  { id: 'slate',    label: 'Slate',    bg: 'linear-gradient(315deg, #64748b 0%, #1e293b 80%)' },
-  { id: 'forest',   label: 'Forest',   bg: 'linear-gradient(315deg, #22c55e 0%, #14532d 80%)' },
+  { id: 'blue',     label: 'Ocean',    bg: 'linear-gradient(315deg, #4F98FA 0%, #2D72D8 80%)' },
+  { id: 'navy',     label: 'Navy',     bg: 'linear-gradient(315deg, #6b7fc0 0%, #2e3f72 80%)' },
+  { id: 'purple',   label: 'Purple',   bg: 'linear-gradient(315deg, #c08cff 0%, #7c3aed 80%)' },
+  { id: 'teal',     label: 'Teal',     bg: 'linear-gradient(315deg, #5eead4 0%, #14b8a6 80%)' },
+  { id: 'sunset',   label: 'Sunset',   bg: 'linear-gradient(315deg, #fdba74 0%, #f43f8e 80%)' },
+  { id: 'rose',     label: 'Rose',     bg: 'linear-gradient(315deg, #fecdd3 0%, #fb5475 80%)' },
+  { id: 'slate',    label: 'Slate',    bg: 'linear-gradient(315deg, #94a3b8 0%, #475569 80%)' },
+  { id: 'forest',   label: 'Forest',   bg: 'linear-gradient(315deg, #4ade80 0%, #16a34a 80%)' },
 ]
 
 // ── Column & card: White / Black ──

@@ -67,6 +67,11 @@ html, body { height: 100%; }
   --claude-line:   #E8E6DD;
   --claude-orange: #144793;
   --claude-orange-deep: #0E3470;
+  /* ── SATU sumber gradasi tema. Ganti 2 var ini = semua elemen gradasi
+     (button, tab, bubble, board, ring progress, dll) ikut berubah. ── */
+  --blue-grad-from: #2D72D8;
+  --blue-grad-to:   #4F98FA;
+  --blue-grad: linear-gradient(135deg, var(--blue-grad-from) 0%, var(--blue-grad-to) 100%);
   --font-serif: 'Tiempos Text', Charter, Georgia, 'Times New Roman', serif;
 
   font-family: 'Inter', -apple-system, sans-serif;
