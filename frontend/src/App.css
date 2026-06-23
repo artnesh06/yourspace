@@ -774,8 +774,8 @@
   border-radius: 18px;
   font-size: 14.5px;
   line-height: 1.55;
-  color: #141413;
-  background: #ECEAE2;
+  color: #fff;
+  background: var(--blue-grad);
   animation: fadeUp .18s ease;
   white-space: pre-wrap;
   word-break: break-word;
@@ -4455,7 +4455,10 @@ html[data-theme="dark"] .auth-page {
   align-items: center;
   justify-content: center;
   gap: 10px;
+  transition: transform .15s;
+  cursor: pointer;
 }
+.auth-google-btn:active { transform: scale(0.97); transition: transform .08s; }
 .auth-google-btn span {
   display: inline-grid;
   place-items: center;
@@ -4498,6 +4501,7 @@ html[data-theme="dark"] .auth-error { background: #4A241C; color: #F2A08F; }
   transition: background .15s, transform .15s;
 }
 .auth-submit:hover { transform: translateY(-1px); background: #000000; }
+.auth-submit:active { transform: scale(0.97) translateY(0); background: #000000; transition: transform .08s, background .08s; }
 .auth-submit:disabled { opacity: .6; transform: none; }
 
 .auth-options-row {
@@ -4674,7 +4678,7 @@ html[data-theme="dark"] .auth-company-logo {
   border-radius: 20px;
   overflow: hidden;
   border: 1px solid #144793;
-  background: linear-gradient(120deg, #1a5bb8 0%, #144793 55%, #0E3470 100%);
+  background: var(--blue-grad);
   isolation: isolate;
   transition: border-color .2s;
   /* guard against the flex-column + overflow:hidden min-content collapse

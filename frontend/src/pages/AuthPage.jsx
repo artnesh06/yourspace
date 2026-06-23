@@ -145,7 +145,7 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister, onGoogle }) {
             glareAngle={-45}
             transitionDuration={600}
           >
-            <button type="button" onClick={handleGoogle} disabled={busy} className="auth-google-btn" style={{ background: 'transparent', border: 'none', width: '100%', height: '100%' }}>
+            <button type="button" onClick={handleGoogle} disabled={busy} className="auth-google-btn" style={{ background: 'transparent', border: 'none', width: '100%', height: '100%', transition: 'transform .08s' }} onMouseDown={e => e.currentTarget.style.transform='scale(0.97)'} onMouseUp={e => e.currentTarget.style.transform=''} onMouseLeave={e => e.currentTarget.style.transform=''}>
               <svg className="auth-google-logo" viewBox="0 0 48 48" aria-hidden="true">
                 <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/>
                 <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/>
@@ -191,7 +191,7 @@ export function AuthPage({ theme, setTheme, onLogin, onRegister, onGoogle }) {
             transitionDuration={600}
             style={{ marginTop: '12px' }}
           >
-            <button type="submit" className="auth-submit" disabled={busy} style={{ background: 'transparent', border: 'none', margin: 0, width: '100%', height: '100%' }}>
+            <button type="submit" className="auth-submit" disabled={busy} style={{ background: 'transparent', border: 'none', margin: 0, width: '100%', height: '100%', transition: 'transform .08s' }} onMouseDown={e => !busy && (e.currentTarget.style.transform='scale(0.97)')} onMouseUp={e => e.currentTarget.style.transform=''} onMouseLeave={e => e.currentTarget.style.transform=''}>
               {busy ? 'Sebentar…' : mode === 'login' ? 'Masuk →' : 'Bikin akun →'}
             </button>
           </GlareHover>
