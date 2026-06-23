@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { apiUrl } from '../lib/api'
 
-const STORAGE_KEY = 'ys-chat-v1'
+const storageKey = (userId) => `ys-chat-v1-${userId}`
 
 const GREETING = {
   id: 'm0',
@@ -23,9 +23,9 @@ function dedupeMessages(msgs) {
   })
 }
 
-function loadStored() {
+function loadStored(userId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(storageKey(userId))
     if (!raw) return null
     const data = JSON.parse(raw)
     if (Array.isArray(data.messages) && data.messages.length > 0) {
@@ -36,7 +36,7 @@ function loadStored() {
 }
 
 export function useChat({ userId = 'default', getBoardSummary, getAppContext, onToolCall }) {
-  const stored = loadStored()
+  const stored = loadStored(userId)
   const [messages, setMessages] = useState(stored?.messages || [GREETING])
   const [loading, setLoading]   = useState(false)
   const [model, setModel]       = useState(stored?.model || 'claude-haiku-4-5')
@@ -49,13 +49,13 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
   useEffect(() => {
     try {
       const toSave = messages.filter(m => !m.streaming).slice(-60)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      localStorage.setItem(storageKey(userId), JSON.stringify({
         messages: toSave,
         history: historyRef.current.slice(-40),
         model,
       }))
     } catch { /* storage full — ignore */ }
-  }, [messages, model])
+  }, [messages, model, userId])
 
   const sendMessage = useCallback(async (userText, image = null) => {
     if ((!userText.trim() && !image) || loading) return
@@ -179,7 +179,7 @@ export function useChat({ userId = 'default', getBoardSummary, getAppContext, on
   const clearChat = useCallback(() => {
     historyRef.current = []
     setMessages([GREETING])
-    try { localStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+    try { localStorage.removeItem(storageKey(userId)) } catch { /* ignore */ }
   }, [])
 
   // pesan assistant lokal (tanpa hit API) — dipakai buat reminder deadline.

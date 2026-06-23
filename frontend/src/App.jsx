@@ -494,6 +494,7 @@ function Workspace({ user, onLogout, theme, setTheme }) {
           />
         )}
         {page === 'search'   && <SearchPage
+          userId={user.id}
           userName={user.name}
           newChatKey={searchNewKey}
           getBoardSummary={getBoardSummary}

@@ -34,15 +34,15 @@ function HeroGreeting({ name }) {
   )
 }
 
-const STORAGE_KEY = 'ys-search-chats-v1'
+const searchStorageKey = (userId) => `ys-search-chats-v1-${userId}`
 
 function genId() {
   return 'sc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5)
 }
 
-function loadChats() {
+function loadChats(userId) {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(searchStorageKey(userId))
     if (!raw) return { conversations: [] }
     return JSON.parse(raw)
   } catch { return { conversations: [] } }
@@ -55,8 +55,8 @@ const CHIPS = [
   { icon: '📊', label: 'Laporan absen' },
 ]
 
-export function SearchPage({ userName = 'Anesh', newChatKey = 0, getBoardSummary, getAppContext, onToolCall }) {
-  const [conversations, setConversations] = useState(() => loadChats().conversations || [])
+export function SearchPage({ userId = 'default', userName = 'Anesh', newChatKey = 0, getBoardSummary, getAppContext, onToolCall }) {
+  const [conversations, setConversations] = useState(() => loadChats(userId).conversations || [])
   const [activeId, setActiveId] = useState(null)
   const [loading, setLoading] = useState(false)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -72,7 +72,7 @@ export function SearchPage({ userName = 'Anesh', newChatKey = 0, getBoardSummary
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ conversations }))
+      localStorage.setItem(searchStorageKey(userId), JSON.stringify({ conversations }))
     } catch {}
   }, [conversations])
 
