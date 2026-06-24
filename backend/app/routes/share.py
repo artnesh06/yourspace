@@ -101,7 +101,8 @@ async def view_shared(token: str):
     finally:
         session.close()
 
-    boards = json.loads(state_row[0]) if state_row else []
+    raw = json.loads(state_row[0]) if state_row else {}
+    boards = raw.get("boards", raw) if isinstance(raw, dict) else raw
     board = next((b for b in boards if b.get("id") == board_id), None)
     if not board:
         raise HTTPException(404, "Board tidak ditemukan")
@@ -130,8 +131,11 @@ async def save_shared(token: str, body: SaveBody):
             text("SELECT data FROM user_state WHERE user_id = :u AND key = 'boards'"),
             {"u": owner_id},
         ).fetchone()
-        boards = json.loads(state_row[0]) if state_row else []
-        updated = [body.board if b.get("id") == board_id else b for b in boards]
+        raw = json.loads(state_row[0]) if state_row else {}
+        is_wrapped = isinstance(raw, dict) and "boards" in raw
+        boards = raw["boards"] if is_wrapped else (raw if isinstance(raw, list) else [])
+        updated_boards = [body.board if b.get("id") == board_id else b for b in boards]
+        updated = {**raw, "boards": updated_boards} if is_wrapped else updated_boards
 
         now = _now()
         result = session.execute(

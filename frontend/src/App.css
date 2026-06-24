@@ -5465,6 +5465,7 @@ html[data-theme="dark"] .auth-company-logo {
   50%  { content: '..'; }
   75%  { content: '...'; }
   100% { content: ''; }
+}
 
 /* ════════════ SHARE MODAL ════════════ */
 .share-modal {
@@ -5517,4 +5518,3 @@ html[data-theme="dark"] .auth-company-logo {
 }
 .share-copy-btn:hover { background: var(--blue-grad-to, #4F98FA); }
 .share-note { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
-}
