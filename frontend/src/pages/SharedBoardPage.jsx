@@ -214,12 +214,13 @@ export function SharedBoardPage({ token }) {
 
   return (
     <div className="app" style={{ flexDirection: 'column' }}>
-      <header className="topbar-v2" style={{ padding: '0 16px', justifyContent: 'space-between' }}>
-        <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--ink)' }}>
+      <header className="topbar-v2" style={{ borderBottom: '1px solid var(--line)', background: 'var(--app-bg)' }}>
+        <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
           🌿 {board.label || 'Shared Board'}
         </span>
-        <span style={{ fontSize: 12, color: 'var(--muted)' }}>Shared · editable</span>
-        <button className="topbar-btn primary" onClick={() => setChatOpen(v => !v)}>
+        <span className="shared-badge">Shared · editable</span>
+        <div style={{ flex: 1 }} />
+        <button className={`topbar-btn${chatOpen ? ' active' : ''}`} onClick={() => setChatOpen(v => !v)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
