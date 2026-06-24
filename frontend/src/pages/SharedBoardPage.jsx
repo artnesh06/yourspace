@@ -10,8 +10,22 @@ import { CardModal } from '../components/CardModal'
 import { ChatPanel } from '../components/ChatPanel'
 import { useChat } from '../hooks/useChat'
 import { apiUrl } from '../lib/api'
+import Logo from '../components/Logo'
 
 function genId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }
+
+function AddColumnForm({ onAdd, onCancel }) {
+  const [val, setVal] = useState('')
+  return (
+    <form className="add-column-form" onSubmit={e => { e.preventDefault(); if (val.trim()) onAdd(val.trim()) }}>
+      <input autoFocus placeholder="Column name…" value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === 'Escape' && onCancel()} />
+      <div className="add-column-actions">
+        <button type="submit" className="btn-primary">Add</button>
+        <button type="button" className="btn-ghost" onClick={onCancel}>Cancel</button>
+      </div>
+    </form>
+  )
+}
 
 async function fetchShared(token) {
   const res = await fetch(apiUrl(`/api/share/view/${token}`))
@@ -33,6 +47,7 @@ export function SharedBoardPage({ token }) {
   const [activeItem, setActiveItem] = useState(null)
   const [chatOpen, setChatOpen] = useState(false)
   const [modalCard, setModalCard] = useState(null)
+  const [newColOpen, setNewColOpen] = useState(false)
   const saveTimer = useRef(null)
 
   useEffect(() => {
@@ -214,9 +229,10 @@ export function SharedBoardPage({ token }) {
 
   return (
     <div className="app" style={{ flexDirection: 'column' }}>
-      <header className="topbar-v2" style={{ borderBottom: '1px solid var(--line)', background: 'var(--app-bg)' }}>
-        <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: 6 }}>
-          🌿 {board.label || 'Shared Board'}
+      <header className="topbar-v2" style={{ borderBottom: '1px solid var(--line)', background: 'var(--app-bg)', padding: '0 16px', minHeight: 48 }}>
+        <Logo style={{ width: 28, height: 28, marginRight: 4, flexShrink: 0 }} />
+        <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--ink)' }}>
+          {board.label || 'Shared Board'}
         </span>
         <span className="shared-badge">Shared · editable</span>
         <div style={{ flex: 1 }} />
@@ -253,15 +269,15 @@ export function SharedBoardPage({ token }) {
                           />
                         ))}
                       </SortableContext>
-                      <button className="add-column-btn" onClick={() => {
-                        const name = prompt('Nama kolom baru:')
-                        if (name?.trim()) addColumn(name.trim())
-                      }}>
-                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round">
-                          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-                        </svg>
-                        <span className="add-column-label">Add column</span>
-                      </button>
+                      {newColOpen
+                        ? <AddColumnForm onAdd={name => { addColumn(name); setNewColOpen(false) }} onCancel={() => setNewColOpen(false)} />
+                        : <button className="add-column-btn" onClick={() => setNewColOpen(true)}>
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#22C55E" strokeWidth="2" strokeLinecap="round">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+                            </svg>
+                            <span className="add-column-label">Add column</span>
+                          </button>
+                      }
                     </div>
                   </div>
                 </div>
