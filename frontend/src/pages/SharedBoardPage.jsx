@@ -10,7 +10,6 @@ import { CardModal } from '../components/CardModal'
 import { ChatPanel } from '../components/ChatPanel'
 import { useChat } from '../hooks/useChat'
 import { apiUrl } from '../lib/api'
-import Logo from '../components/Logo'
 
 function genId() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }
 
@@ -230,8 +229,9 @@ export function SharedBoardPage({ token }) {
   return (
     <div className="app" style={{ flexDirection: 'column' }}>
       <header className="topbar-v2" style={{ borderBottom: '1px solid var(--line)', background: 'var(--app-bg)', padding: '0 16px', minHeight: 48 }}>
-        <Logo style={{ width: 28, height: 28, marginRight: 4, flexShrink: 0 }} />
-        <span style={{ fontWeight: 800, fontSize: 14, color: 'var(--ink)' }}>
+        <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--muted)', letterSpacing: '.04em', marginRight: 4 }}>YOURSPACE</span>
+        <span style={{ color: 'var(--line)', fontSize: 16 }}>/</span>
+        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
           {board.label || 'Shared Board'}
         </span>
         <span className="shared-badge">Shared · editable</span>
