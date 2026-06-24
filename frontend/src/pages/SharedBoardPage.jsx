@@ -228,26 +228,30 @@ export function SharedBoardPage({ token }) {
 
   return (
     <div className="app" style={{ flexDirection: 'column' }}>
-      <header className="topbar-v2" style={{ borderBottom: '1px solid var(--line)', background: 'var(--app-bg)', padding: '0 16px', minHeight: 48 }}>
-        <span style={{ fontWeight: 800, fontSize: 13, color: 'var(--muted)', letterSpacing: '.04em', marginRight: 4 }}>YOURSPACE</span>
-        <span style={{ color: 'var(--line)', fontSize: 16 }}>/</span>
-        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>
-          {board.label || 'Shared Board'}
-        </span>
+      {/* ── Header ── */}
+      <header className="topbar-v2">
+        {/* Tab board — sama styling kayak main app */}
+        <div className="topbar-tabs">
+          <button className="board-tab active">
+            <span className="board-tab-icon">🌿</span>
+            {board.label || 'Shared Board'}
+          </button>
+        </div>
         <span className="shared-badge">Shared · editable</span>
         <div style={{ flex: 1 }} />
-        <button className={`topbar-btn${chatOpen ? ' active' : ''}`} onClick={() => setChatOpen(v => !v)}>
+        <button className={`topbar-btn${chatOpen ? ' active' : ''} primary`} onClick={() => setChatOpen(v => !v)}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
-          AI Chat
         </button>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+      {/* ── Main content ── */}
+      <div className="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
         <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="board-frame-wrap" style={{ flex: 1 }}>
+          {/* Board — sama persis kayak main app, ada gap kiri-kanan dari board-frame-wrap */}
+          <div className="board-frame-wrap">
             <div className="board-frame">
               <div className="board-row">
                 <div className="board-dnd-wrapper">
@@ -291,19 +295,18 @@ export function SharedBoardPage({ token }) {
           </DragOverlay>
         </DndContext>
 
-        {chatOpen && (
-          <div className="chat-panel-wrapper open">
-            <div className="chat-panel-backdrop" onClick={() => setChatOpen(false)} />
-            <div className="chat-panel">
-              <ChatPanel
-                messages={messages} loading={loading}
-                onSend={sendMessage} stopStream={stopStream}
-                model={model} onModelChange={setModel}
-                onClose={() => setChatOpen(false)}
-              />
-            </div>
+        {/* Chat panel — sama persis kayak main app */}
+        <div className={`chat-panel-wrapper ${chatOpen ? 'open' : ''}`}>
+          <div className="chat-panel-backdrop" onClick={() => setChatOpen(false)} />
+          <div className="chat-panel">
+            <ChatPanel
+              messages={messages} loading={loading}
+              onSend={sendMessage} stopStream={stopStream}
+              model={model} onModelChange={setModel}
+              onClose={() => setChatOpen(false)}
+            />
           </div>
-        )}
+        </div>
       </div>
 
       {freshModal && (
