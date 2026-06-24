@@ -227,7 +227,7 @@ export function SharedBoardPage({ token }) {
   const freshModal = modalCard ? board.columns.flatMap(c => c.cards).find(c => c.id === modalCard.id) : null
 
   return (
-    <div className="app" style={{ flexDirection: 'column' }}>
+    <div className="app" style={{ flexDirection: 'column', height: '100svh', overflow: 'hidden' }}>
       {/* ── Header ── */}
       <header className="topbar-v2">
         {/* Tab board — sama styling kayak main app */}
@@ -247,7 +247,7 @@ export function SharedBoardPage({ token }) {
       </header>
 
       {/* ── Main content ── */}
-      <div className="main-content" style={{ display: 'flex', flex: 1, minHeight: 0, position: 'relative' }}>
+      <div className="main-content" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           {/* Board — sama persis kayak main app, ada gap kiri-kanan dari board-frame-wrap */}
