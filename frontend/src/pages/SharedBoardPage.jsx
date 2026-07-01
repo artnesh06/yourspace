@@ -50,6 +50,11 @@ export function SharedBoardPage({ token }) {
   const saveTimer = useRef(null)
 
   useEffect(() => {
+    const saved = localStorage.getItem('ys-theme')
+    if (saved) document.documentElement.setAttribute('data-theme', saved)
+  }, [])
+
+  useEffect(() => {
     fetchShared(token)
       .then(data => setBoard(data.board))
       .catch(e => setError(e.message))
@@ -228,9 +233,9 @@ export function SharedBoardPage({ token }) {
 
   return (
     <div className="app" style={{ flexDirection: 'column', height: '100svh', overflow: 'hidden' }}>
+
       {/* ── Header ── */}
       <header className="topbar-v2">
-        {/* Tab board — sama styling kayak main app */}
         <div className="topbar-tabs">
           <button className="board-tab active">
             <span className="board-tab-icon">🌿</span>
@@ -246,12 +251,12 @@ export function SharedBoardPage({ token }) {
         </button>
       </header>
 
-      {/* ── Main content ── */}
-      <div className="main-content" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
+      {/* ── Row: board + chat panel side by side ── */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <DndContext sensors={sensors} collisionDetection={closestCorners}
           onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          {/* Board — sama persis kayak main app, ada gap kiri-kanan dari board-frame-wrap */}
-          <div className="board-frame-wrap">
+
+          <div className="board-frame-wrap" style={{ flex: 1, minWidth: 0 }}>
             <div className="board-frame">
               <div className="board-row">
                 <div className="board-dnd-wrapper">
@@ -295,7 +300,7 @@ export function SharedBoardPage({ token }) {
           </DragOverlay>
         </DndContext>
 
-        {/* Chat panel — sama persis kayak main app */}
+        {/* Chat panel — sibling board, slide dari kanan */}
         <div className={`chat-panel-wrapper ${chatOpen ? 'open' : ''}`}>
           <div className="chat-panel-backdrop" onClick={() => setChatOpen(false)} />
           <div className="chat-panel">
@@ -312,7 +317,7 @@ export function SharedBoardPage({ token }) {
       {freshModal && (
         <CardModal
           card={freshModal}
-          columns={board.columns}
+          allColumns={board.columns}
           onClose={() => setModalCard(null)}
           onUpdate={(id, changes) => updateCard(id, changes)}
           onDelete={deleteCard}
